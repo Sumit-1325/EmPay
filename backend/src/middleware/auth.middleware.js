@@ -5,7 +5,7 @@ import asyncHandler from "../utils/async-handler.js";
 
 export const verifyJWT = async (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
+    const token = req.header("Authorization")?.replace("Bearer ", "") || req.query.token;
 
     if (!token) {
       return res.status(401).json(new apiError(401, "Unauthorized request", [{ issue: "No token provided" }]));

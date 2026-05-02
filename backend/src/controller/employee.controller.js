@@ -10,6 +10,7 @@ import {
   deleteSkill,
   addCertification,
   deleteCertification,
+  resetEmployeePassword,
 } from "../services/employee.service.js";
 
 export const listEmployeesController = asyncHandler(async (req, res) => {
@@ -63,5 +64,10 @@ export const addCertificationController = asyncHandler(async (req, res) => {
 
 export const deleteCertificationController = asyncHandler(async (req, res) => {
   const result = await deleteCertification(req.user.companyId, parseInt(req.params.id), parseInt(req.params.certId));
+  return res.status(result.statusCode).json(result);
+});
+
+export const resetEmployeePasswordController = asyncHandler(async (req, res) => {
+  const result = await resetEmployeePassword(req.user.companyId, parseInt(req.params.id));
   return res.status(result.statusCode).json(result);
 });

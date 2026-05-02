@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Pencil, Plus, X, Building2, MapPin,
   Mail, Phone, FileText, Star, Award, ShieldCheck,
+  Lock, Eye, EyeOff, CheckCircle, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/common/Avatar";
@@ -13,6 +14,7 @@ import { useToast } from "@/context/ToastContext";
 import { ROLE_LABELS, MANAGER_ROLES, PAYROLL_ROLES } from "@/constants/roles";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
+import { getPasswordHints } from "@/lib/validators";
 
 // ── Inline editable text area ─────────────────────────────────────────────────
 function EditableSection({ title, value, field, canEdit, onSave }) {
@@ -461,6 +463,209 @@ function PFRateField({ value, onSave }) {
   );
 }
 
+// ── Password field with show/hide toggle ─────────────────────────────────────
+function PwField({ id, label, value, onChange, error, placeholder }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+        <Lock size={12} /> {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={cn(
+            "h-10 w-full rounded-lg border bg-muted/30 px-3 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors",
+            error ? "border-destructive focus:ring-destructive/40" : "border-border"
+          )}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          {show ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+// ── Security tab: own profile = change password; admin viewing other = reset ──
+function SecurityTab({ employeeId, employeeEmail, isOwnProfile, canReset }) {
+  const { login }  = useAuth();
+  const { toast }  = useToast();
+
+  // Change-password form (own profile)
+  const [fields, setFields]     = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+  const [errors, setErrors]     = useState({});
+  const [saving, setSaving]     = useState(false);
+  const [serverErr, setServerErr] = useState("");
+
+  // Reset password (admin on other employee)
+  const [resetting, setResetting] = useState(false);
+
+  const hints = getPasswordHints(fields.newPassword);
+
+  function set(key) {
+    return (e) => {
+      setFields((p) => ({ ...p, [key]: e.target.value }));
+      setErrors((p) => ({ ...p, [key]: "" }));
+      setServerErr("");
+    };
+  }
+
+  function validate() {
+    const errs = {};
+    if (!fields.oldPassword)    errs.oldPassword    = "Current password is required";
+    if (!fields.newPassword)    errs.newPassword    = "New password is required";
+    else if (!hints.every((h) => h.valid)) errs.newPassword = "Password does not meet requirements";
+    if (!fields.confirmPassword) errs.confirmPassword = "Please confirm your password";
+    else if (fields.confirmPassword !== fields.newPassword) errs.confirmPassword = "Passwords do not match";
+    return errs;
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setSaving(true);
+    try {
+      const res = await api.put("/auth/change-password", {
+        oldPassword: fields.oldPassword,
+        newPassword: fields.newPassword,
+      });
+      login(res.data.user, res.data.accessToken, res.data.refreshToken);
+      toast({ title: "Password updated", description: "New credentials sent to your email.", variant: "success" });
+      setFields({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      if (err.errors?.length) {
+        const mapped = {};
+        err.errors.forEach(({ path, msg }) => { if (path) mapped[path] = msg; });
+        setErrors(mapped);
+      } else {
+        setServerErr(err.message || "Failed to update password");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    if (!window.confirm(`Reset password for ${employeeEmail}? A new temporary password will be emailed to them.`)) return;
+    setResetting(true);
+    try {
+      await api.post(`/employees/${employeeId}/reset-password`, {});
+      toast({ title: "Password reset", description: `New credentials sent to ${employeeEmail}.`, variant: "success" });
+    } catch (err) {
+      toast({ title: err.message || "Reset failed", variant: "error" });
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  // Admin/HR viewing another employee's profile → reset button
+  if (!isOwnProfile && canReset) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 space-y-4 max-w-md">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-destructive/10 p-2.5">
+            <RotateCcw size={18} className="text-destructive" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Reset Employee Password</p>
+            <p className="text-xs text-muted-foreground">Generates a new temporary password and emails it to the employee.</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-4 py-3">
+          The employee will be required to change their password on next login. An email will be sent to <strong>{employeeEmail}</strong>.
+        </p>
+        <button
+          onClick={handleReset}
+          disabled={resetting}
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 text-sm font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50"
+        >
+          <RotateCcw size={14} /> {resetting ? "Sending…" : "Reset Password & Send Email"}
+        </button>
+      </div>
+    );
+  }
+
+  // Own profile → change password form
+  if (isOwnProfile) {
+    return (
+      <div className="max-w-md space-y-5">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="rounded-lg bg-primary/10 p-2.5">
+            <ShieldCheck size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Change Password</p>
+            <p className="text-xs text-muted-foreground">Update your login password. A confirmation will be sent to your email.</p>
+          </div>
+        </div>
+
+        {serverErr && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle size={14} /> {serverErr}
+          </div>
+        )}
+
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <PwField
+            id="oldPw" label="Current Password" placeholder="Your current password"
+            value={fields.oldPassword} onChange={set("oldPassword")} error={errors.oldPassword}
+          />
+          <PwField
+            id="newPw" label="New Password" placeholder="Strong@123"
+            value={fields.newPassword} onChange={set("newPassword")} error={errors.newPassword}
+          />
+
+          {fields.newPassword.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {hints.map((h) => (
+                <span key={h.label} className={cn(
+                  "flex items-center gap-1 rounded-md border px-2 py-0.5 text-[0.65rem] font-medium transition-colors",
+                  h.valid
+                    ? "border-green-500/30 bg-green-500/10 text-green-500"
+                    : "border-border bg-muted/30 text-muted-foreground"
+                )}>
+                  {h.valid && <CheckCircle size={9} />} {h.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <PwField
+            id="confirmPw" label="Confirm New Password" placeholder="Repeat new password"
+            value={fields.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword}
+          />
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving ? "Updating…" : "Update Password"}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // Edge case: employee viewing another employee (shouldn't happen due to route guards)
+  return (
+    <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">
+      Security settings — not available.
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function EmployeeDetail() {
   const { id }       = useParams();
@@ -587,10 +792,14 @@ export default function EmployeeDetail() {
     {
       value: "security",
       label: "Security",
+      icon: ShieldCheck,
       content: (
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">
-          Security settings (2FA, password reset) — coming soon.
-        </div>
+        <SecurityTab
+          employeeId={employee.id}
+          employeeEmail={employee.email}
+          isOwnProfile={user?.id === employee.id}
+          canReset={MANAGER_ROLES.includes(user?.role)}
+        />
       ),
     },
   ];

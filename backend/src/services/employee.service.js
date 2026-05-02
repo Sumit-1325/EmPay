@@ -242,6 +242,48 @@ export const deleteCertification = async (companyId, employeeId, certId) => {
   return new apiResponse(200, "Certification removed", true);
 };
 
+export const resetEmployeePassword = async (companyId, employeeId) => {
+  const employee = await prisma.user.findFirst({
+    where:   { id: employeeId, companyId },
+    include: { company: { select: COMPANY_SELECT } },
+  });
+  if (!employee) throw new apiError(404, "Employee not found");
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+  await prisma.user.update({
+    where: { id: employeeId },
+    data:  { passwordHash, mustChangePassword: true, refreshToken: null },
+  });
+
+  sendEmail({
+    to:      employee.email,
+    subject: `Your EmPay password has been reset`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#6366f1">Password Reset</h2>
+        <p>Your password has been reset by an administrator. Use the credentials below to log in.</p>
+        <table style="border-collapse:collapse;width:100%;margin:16px 0">
+          <tr>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Login ID</td>
+            <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${employee.loginId}</td>
+          </tr>
+          <tr><td colspan="2" style="height:8px"></td></tr>
+          <tr>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">New Password</td>
+            <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${tempPassword}</td>
+          </tr>
+        </table>
+        <p style="color:#ef4444;font-size:13px">⚠️ You will be asked to change this password on next login.</p>
+        <p style="font-size:13px;color:#6b7280">Login at: <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a></p>
+      </div>
+    `,
+  }).catch(() => {});
+
+  return new apiResponse(200, "Password reset. New credentials sent to employee's email.", { email: employee.email });
+};
+
 export const deleteEmployee = async (companyId, employeeId, requesterId) => {
   if (employeeId === requesterId) throw new apiError(400, "You cannot delete your own account");
 

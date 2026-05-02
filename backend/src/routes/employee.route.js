@@ -15,6 +15,7 @@ import {
   deleteSkillController,
   addCertificationController,
   deleteCertificationController,
+  resetEmployeePasswordController,
 } from "../controller/employee.controller.js";
 
 const router = Router();
@@ -43,5 +44,6 @@ router.post(  "/:id/skills",              requireRole("ADMIN", "HR_OFFICER"), ad
 router.delete("/:id/skills/:skillId",     requireRole("ADMIN", "HR_OFFICER"), deleteSkillController);
 router.post(  "/:id/certifications",      requireRole("ADMIN", "HR_OFFICER"), addCertificationController);
 router.delete("/:id/certifications/:certId", requireRole("ADMIN", "HR_OFFICER"), deleteCertificationController);
+router.post(  "/:id/reset-password",         requireRole("ADMIN", "HR_OFFICER"), resetEmployeePasswordController);
 
 export default router;

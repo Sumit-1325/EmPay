@@ -9,6 +9,7 @@ import employeeRouter   from "./routes/employee.route.js";
 import attendanceRouter from "./routes/attendance.route.js";
 import leaveRouter           from "./routes/leave.route.js";
 import leaveAllocationRouter from "./routes/leave-allocation.route.js";
+import reportRouter         from "./routes/report.route.js";
 import payrollRouter    from "./routes/payroll.route.js";
 import companyRouter    from "./routes/company.route.js";
 
@@ -50,6 +51,7 @@ app.use("/api/employees",  employeeRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/leave",             leaveRouter);
 app.use("/api/leave/allocations", leaveAllocationRouter);
+app.use("/api/reports",           reportRouter);
 app.use("/api/payroll",    payrollRouter);
 app.use("/api/company",   companyRouter);
 
