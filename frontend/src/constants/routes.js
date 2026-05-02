@@ -11,6 +11,7 @@ export const ROUTES = {
   TIME_OFF:         "/time-off",
   ALLOCATION:       "/leave-allocation",
   PAYROLL:          "/payroll",
+  PAYROLL_DETAIL:   "/payroll/payslip/:id",
   REPORTS:          "/reports",
   SETTINGS:         "/settings",
 };

@@ -87,6 +87,7 @@ ROUTES.EMPLOYEES         // /employees
 ROUTES.EMPLOYEE_DETAIL   // /employees/:id
 ROUTES.ATTENDANCE        // /attendance
 ROUTES.TIME_OFF          // /time-off
+ROUTES.ALLOCATION        // /leave-allocation  ← Leave Allocation page (ADMIN + HR_OFFICER only)
 ROUTES.PAYROLL           // /payroll
 ROUTES.REPORTS           // /reports
 ROUTES.SETTINGS          // /settings
@@ -108,6 +109,10 @@ ROUTE_ACCESS    // map of route key → allowed roles array
 ```
 
 **Sidebar gating:** Each `NAV_ITEM` has an `access` array. If the logged-in user's role is not in `access`, the nav item renders as a disabled `<div>` with a Lock icon (40% opacity) instead of a `<NavLink>`. This prevents unauthorized access without showing a 403 error page.
+
+**Settings link:** Only rendered for `ADMIN` — completely hidden from sidebar and MobileNav for all other roles (not just locked).
+
+**Allocation link:** Uses `ROUTE_ACCESS.ALLOCATION = [ADMIN, HR_OFFICER]`. Employees and Payroll Officers see a locked icon.
 
 **Employee profile tabs:**
 - Resume tab: editable by MANAGER_ROLES (read-only for EMPLOYEE)
@@ -233,16 +238,45 @@ profTax = 200
 ## Time Off Page — `pages/TimeOff.jsx`
 
 Role-split views:
-- **Employee**: Shows own leave requests + balance cards (Paid Time Off: 24 days, Sick Leave: 7 days, Unpaid: no limit). Balance computed from approved leaves in current year. "NEW" opens `RequestModal`.
+- **Employee**: Shows own leave requests + balance cards fetched live from `GET /leave/allocations/me`. Balance = allocated days − approved leave days. Shows an amber warning card if used > allocated. "NEW" opens `RequestModal`.
 - **Admin/HR Officer**: Shows ALL employees' requests. "NEW" opens `AdminRequestForm` (employee dropdown). Can approve/reject pending requests (✓ / ✗ icon buttons).
 
 Leave types: `"Paid Time Off"` (isPaid: true), `"Sick Leave"` (isPaid: true), `"Unpaid Leave"` (isPaid: false).
 
-`POST /leave` body: `{ leaveType, startDate, endDate, isPaid, reason?, targetUserId? }` — `targetUserId` used by Admin/HR to create on behalf of another employee.
+**Sick Leave attachment:** The attachment file input only appears when "Sick Leave" is selected. Accepts `image/*` only (no PDF). Sent as `FormData` via `api.post`. Stored on Cloudinary via `uploadLeaveAttachment()` with `resource_type: "auto"`.
+
+**FormData upload:** `api.post` detects `FormData` instances and skips `JSON.stringify`, allowing the browser to set `multipart/form-data` headers automatically.
+
+**Leave balance cards:** Fetched from `GET /leave/allocations/me` (backend filters active allocations by date). Balance = `allocated - used`. If `used > allocated`, card turns amber with an "X days over limit" badge.
+
+`POST /leave` body: `{ leaveType, startDate, endDate, isPaid, reason?, targetUserId? }` + optional `attachment` file field.
 
 `PUT /leave/:id/approve` and `PUT /leave/:id/reject` — allowed for ADMIN, HR_OFFICER, PAYROLL_OFFICER.
 
-Leave balance: hardcoded allocation (`Paid Time Off: 24, Sick Leave: 7`) minus sum of days in approved requests. No DB model for allocations — policy is fixed in frontend constants.
+**Action column alignment:** The last grid column uses a fixed-width `<span className="w-7">` slot for the paperclip icon so approve/reject buttons stay aligned across all rows regardless of attachment presence.
+
+## Leave Allocation Page — `pages/LeaveAllocation.jsx`
+
+Admin/HR-only page at `/leave-allocation`. Allows creating and deleting leave entitlements for employees.
+
+- **Form fields:** Employee dropdown, Leave Type, Validity Period (start/end dates + "No limit" toggle), Allocation Days (capped to date range), Note.
+- **Days cap:** `max = endDate − startDate + 1` (inclusive). Auto-clamped when dates change. Shows hint when end date is set.
+- **Table:** Lists all company allocations with Employee, Leave Type, From, To, Days, Note, Delete button.
+- **Delete:** `DELETE /leave/allocations/:id` — spinner on row, refetches list, shows toast.
+
+**Data flow for employee balance:**
+1. HR creates allocation via Allocation page → saved to `leave_allocations` table
+2. Employee opens Time Off → `GET /leave/allocations/me` returns active allocations (today within validity period)
+3. Balance computed: `remaining = max(0, allocated - approved_used)`
+
+## Topbar — Check-In/Out (`components/layout/Topbar.jsx`)
+
+The `CheckInOut` component enforces work-hour boundaries:
+- Reads `user.company.workStartTime` and `user.company.workEndTime` (format: `"HH:MM"`).
+- A `setInterval` updates current time every 60 s so the button auto-enables/disables at the boundary.
+- **Check-in** is disabled outside work hours — button shows `"Opens HH:MM AM/PM"` and hovering shows a tooltip with the allowed window.
+- **Check-out** is always allowed (employee may stay past end time).
+- Helper `fmt12("HH:MM")` converts 24-hour strings to 12-hour AM/PM display.
 
 ## Payroll Dashboard — `pages/Payroll.jsx`
 

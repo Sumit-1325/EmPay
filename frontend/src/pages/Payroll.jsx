@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { createPortal } from "react-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { AlertTriangle, Users, Wallet, TrendingUp, UserPlus } from "lucide-react";
+import { AlertTriangle, Users, Wallet, TrendingUp, UserPlus, Play, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useFetch } from "@/hooks/useFetch";
 import { useToast } from "@/context/ToastContext";
@@ -40,6 +41,97 @@ function TabNav({ active, onChange, tabs }) {
         </button>
       ))}
     </div>
+  );
+}
+
+// ─── Run Payrun modal ─────────────────────────────────────────────────────────
+
+function RunPayrunModal({ onClose, onSuccess }) {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year,  setYear]  = useState(now.getFullYear());
+  const [running, setRunning] = useState(false);
+  const [result,  setResult]  = useState(null);
+  const { toast } = useToast();
+
+  async function handleRun() {
+    setRunning(true);
+    try {
+      const data = await api.post("/payroll/run", { month, year });
+      setResult(data);
+      onSuccess?.();
+    } catch (err) {
+      toast({ title: err.message, variant: "error" });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="relative bg-gradient-to-r from-primary to-secondary px-6 py-5">
+          <h2 className="text-lg font-semibold text-white">Run Payrun</h2>
+          <p className="text-sm text-white/70 mt-0.5">Generate payslips for all employees</p>
+          <button onClick={onClose} className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {result ? (
+            <div className="space-y-3 text-center">
+              <div className="text-4xl font-bold text-primary">{result.employeesProcessed ?? 0}</div>
+              <p className="text-sm text-muted-foreground">payslip{(result.employeesProcessed ?? 0) !== 1 ? "s" : ""} generated</p>
+              {(result.errors ?? []).length > 0 && (
+                <p className="text-xs text-destructive">{result.errors.length} error{result.errors.length !== 1 ? "s" : ""} (already run or missing wage)</p>
+              )}
+              <button onClick={onClose} className="mt-2 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+                Done
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Month</label>
+                  <select
+                    value={month}
+                    onChange={(e) => setMonth(Number(e.target.value))}
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {FULL_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Year</label>
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={onClose} className="flex-1 rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRun}
+                  disabled={running}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Play className="h-3.5 w-3.5" /> {running ? "Running…" : "Run Payroll"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -106,11 +198,12 @@ function DashboardTab() {
   const { user }  = useAuth();
   const [costView,    setCostView]    = useState("monthly");
   const [joiningView, setJoiningView] = useState("monthly");
+  const [showRunModal, setShowRunModal] = useState(false);
 
   const canViewPayroll = PAYROLL_ROLES.includes(user?.role);
   const isHR           = user?.role === "HR_OFFICER";
 
-  const { data, loading, error } = useFetch(() => api.get("/payroll/dashboard"), []);
+  const { data, loading, error, refetch: refetchDashboard } = useFetch(() => api.get("/payroll/dashboard"), []);
 
   const summary        = data?.summary        ?? {};
   const recentPayslips = data?.recentPayslips  ?? [];
@@ -126,6 +219,21 @@ function DashboardTab() {
 
   return (
     <div className="space-y-6">
+      {showRunModal && (
+        <RunPayrunModal onClose={() => setShowRunModal(false)} onSuccess={refetchDashboard} />
+      )}
+
+      {canViewPayroll && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowRunModal(true)}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+          >
+            <Play className="h-4 w-4" /> Run Payrun
+          </button>
+        </div>
+      )}
+
       {(summary.missingBank > 0 || summary.missingManager > 0) && (
         <div className="space-y-2">
           <WarningCard count={summary.missingBank}    label="employee(s) without bank account"      linkTo={ROUTES.EMPLOYEES} />
@@ -210,18 +318,66 @@ function DashboardTab() {
 
 // ─── Payrun tab ───────────────────────────────────────────────────────────────
 
+function PayrunsTable({ onSelectMonth }) {
+  const { data, loading } = useFetch(() => api.get("/payroll/payruns"), []);
+  const payruns = data?.payruns ?? [];
+
+  if (loading) return (
+    <div className="space-y-2">
+      {[...Array(3)].map((_, i) => <div key={i} className="h-10 rounded bg-muted/40 animate-pulse" />)}
+    </div>
+  );
+
+  if (payruns.length === 0) {
+    return <div className="py-10 text-center text-sm text-muted-foreground">No payruns yet. Run your first payrun from the Dashboard tab.</div>;
+  }
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="grid grid-cols-[1fr_90px_130px_150px_80px] bg-muted/40 border-b border-border">
+        {["Period", "Payslips", "Total Net Pay", "Total Employer Cost", ""].map((h) => (
+          <div key={h} className="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</div>
+        ))}
+      </div>
+      {payruns.map((r) => (
+        <div key={`${r.year}-${r.month}`} className="grid grid-cols-[1fr_90px_130px_150px_80px] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+          <div className="px-4 py-3 text-sm font-medium text-foreground">{r.label}</div>
+          <div className="px-4 py-3 text-sm text-muted-foreground">{r.payslipCount}</div>
+          <div className="px-4 py-3 text-sm font-mono text-foreground">{fmt(r.totalNet)}</div>
+          <div className="px-4 py-3 text-sm font-mono text-foreground">{fmt(r.totalCost)}</div>
+          <div className="px-4 py-3">
+            <button
+              onClick={() => onSelectMonth(r.month, r.year)}
+              className="text-xs text-primary hover:underline font-medium"
+            >
+              View →
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PayrunTab() {
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear]   = useState(now.getFullYear());
-  const { toast }         = useToast();
-  const [paying, setPaying] = useState(null);
+  const [subTab, setSubTab]   = useState("summary");
+  const [month, setMonth]     = useState(now.getMonth() + 1);
+  const [year, setYear]       = useState(now.getFullYear());
+  const { toast }             = useToast();
+  const [paying, setPaying]   = useState(null);
 
   const { data, loading, refetch } = useFetch(
     () => api.get(`/payroll?month=${month}&year=${year}`),
     [month, year]
   );
   const payslips = data?.payslips ?? [];
+
+  function handleSelectMonth(m, y) {
+    setMonth(m);
+    setYear(y);
+    setSubTab("byEmployee");
+  }
 
   async function markPaid(id) {
     setPaying(id);
@@ -238,74 +394,106 @@ function PayrunTab() {
 
   return (
     <div className="space-y-4">
-      {/* Month / Year filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <select
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-          className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          {FULL_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <span className="text-xs text-muted-foreground ml-1">{payslips.length} record{payslips.length !== 1 ? "s" : ""}</span>
+      {/* Inner sub-tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {[{ value: "summary", label: "Payruns Summary" }, { value: "byEmployee", label: "By Employee" }].map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setSubTab(t.value)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+              subTab === t.value
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_100px_120px_120px_110px] bg-muted/40 border-b border-border">
-          {["Employee", "Month", "Basic Salary", "Net Pay", "Status"].map((h) => (
-            <div key={h} className="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</div>
-          ))}
-        </div>
+      {subTab === "summary" && <PayrunsTable onSelectMonth={handleSelectMonth} />}
 
-        {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="grid grid-cols-[1fr_100px_120px_120px_110px] border-b border-border last:border-0">
-              {[...Array(5)].map((_, j) => (
-                <div key={j} className="px-4 py-3"><div className="h-4 rounded bg-muted/40 animate-pulse" /></div>
+      {subTab === "byEmployee" && (
+        <div className="space-y-4">
+          {/* Month / Year filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {FULL_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground ml-1">{payslips.length} record{payslips.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_100px_120px_120px_110px_70px] bg-muted/40 border-b border-border">
+              {["Employee", "Month", "Basic Salary", "Net Pay", "Status", ""].map((h) => (
+                <div key={h} className="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</div>
               ))}
             </div>
-          ))
-        ) : payslips.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">No payslips for this period.</div>
-        ) : (
-          payslips.map((p) => {
-            const name = [p.user?.firstName, p.user?.lastName].filter(Boolean).join(" ") || p.user?.loginId;
-            return (
-              <div key={p.id} className="grid grid-cols-[1fr_100px_120px_120px_110px] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                <div className="px-4 py-3 flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                    {name.charAt(0).toUpperCase()}
+
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="grid grid-cols-[1fr_100px_120px_120px_110px_70px] border-b border-border last:border-0">
+                  {[...Array(6)].map((_, j) => (
+                    <div key={j} className="px-4 py-3"><div className="h-4 rounded bg-muted/40 animate-pulse" /></div>
+                  ))}
+                </div>
+              ))
+            ) : payslips.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-muted-foreground">No payslips for this period.</div>
+            ) : (
+              payslips.map((p) => {
+                const name = [p.user?.firstName, p.user?.lastName].filter(Boolean).join(" ") || p.user?.loginId;
+                return (
+                  <div key={p.id} className="grid grid-cols-[1fr_100px_120px_120px_110px_70px] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                    <div className="px-4 py-3 flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm text-foreground">{name}</span>
+                    </div>
+                    <div className="px-4 py-3 text-sm text-muted-foreground">{MONTH_NAMES[p.month - 1]}</div>
+                    <div className="px-4 py-3 text-sm text-foreground font-mono">{fmt(p.basicSalary)}</div>
+                    <div className="px-4 py-3 text-sm font-semibold text-foreground">{fmt(p.netPay)}</div>
+                    <div className="px-4 py-3">
+                      {p.paidAt ? (
+                        <span className="text-xs font-medium text-green-500">✓ Paid</span>
+                      ) : (
+                        <button
+                          onClick={() => markPaid(p.id)}
+                          disabled={paying === p.id}
+                          className="text-xs rounded-md bg-primary/10 text-primary px-2.5 py-1 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                        >
+                          {paying === p.id ? "…" : "Mark Paid"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="px-4 py-3">
+                      <Link
+                        to={ROUTES.PAYROLL_DETAIL.replace(":id", p.id)}
+                        className="text-xs text-primary hover:underline font-medium"
+                      >
+                        View →
+                      </Link>
+                    </div>
                   </div>
-                  <span className="text-sm text-foreground">{name}</span>
-                </div>
-                <div className="px-4 py-3 text-sm text-muted-foreground">{MONTH_NAMES[p.month - 1]}</div>
-                <div className="px-4 py-3 text-sm text-foreground font-mono">{fmt(p.basicSalary)}</div>
-                <div className="px-4 py-3 text-sm font-semibold text-foreground">{fmt(p.netPay)}</div>
-                <div className="px-4 py-3">
-                  {p.paidAt ? (
-                    <span className="text-xs font-medium text-green-500">✓ Paid</span>
-                  ) : (
-                    <button
-                      onClick={() => markPaid(p.id)}
-                      disabled={paying === p.id}
-                      className="text-xs rounded-md bg-primary/10 text-primary px-2.5 py-1 hover:bg-primary/20 transition-colors disabled:opacity-50"
-                    >
-                      {paying === p.id ? "…" : "Mark Paid"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
