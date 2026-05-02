@@ -200,6 +200,102 @@ function CertsPanel({ certs, employeeId, canEdit, onAdded, onDeleted }) {
   );
 }
 
+// ── Private Info field ────────────────────────────────────────────────────────
+function PrivateField({ label, value, field, canEdit, onSave, type = "text" }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState(value ?? "");
+
+  useEffect(() => { setDraft(value ?? ""); }, [value]);
+
+  async function handleBlur() {
+    setEditing(false);
+    if (draft !== (value ?? "")) await onSave(field, draft || null);
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5 border-b border-border last:border-0">
+      <p className="text-xs text-muted-foreground shrink-0 w-36">{label}</p>
+      {canEdit && editing ? (
+        <input
+          autoFocus
+          type={type}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={handleBlur}
+          className="flex-1 h-7 rounded-lg border border-border bg-muted/50 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      ) : (
+        <button
+          onClick={() => canEdit && setEditing(true)}
+          className={`flex-1 text-right text-sm ${value ? "text-foreground" : "text-muted-foreground italic"} ${canEdit ? "hover:text-primary transition-colors" : ""}`}
+        >
+          {value || (canEdit ? "Add…" : "—")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PrivateSelectField({ label, value, field, canEdit, onSave, options }) {
+  async function handleChange(e) {
+    await onSave(field, e.target.value || null);
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5 border-b border-border last:border-0">
+      <p className="text-xs text-muted-foreground shrink-0 w-36">{label}</p>
+      {canEdit ? (
+        <select
+          value={value ?? ""}
+          onChange={handleChange}
+          className="flex-1 h-7 rounded-lg border border-border bg-muted/50 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+        >
+          <option value="">—</option>
+          {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <span className={`text-sm ${value ? "text-foreground" : "text-muted-foreground italic"}`}>{value || "—"}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Private Info Tab ──────────────────────────────────────────────────────────
+function PrivateInfoTab({ employee, canEdit, onSave }) {
+  const dob = employee.dateOfBirth
+    ? new Date(employee.dateOfBirth).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Personal details */}
+      <div className="rounded-xl border border-border bg-card px-5 py-2">
+        <h3 className="text-sm font-semibold text-foreground py-3 border-b border-border">Personal Information</h3>
+        <PrivateField    label="Date of Birth"   value={employee.dateOfBirth ? employee.dateOfBirth.split("T")[0] : null} field="dateOfBirth"   type="date"  canEdit={canEdit} onSave={onSave} />
+        <PrivateField    label="Residing Address" value={employee.address}      field="address"       canEdit={canEdit} onSave={onSave} />
+        <PrivateField    label="Nationality"      value={employee.nationality}  field="nationality"   canEdit={canEdit} onSave={onSave} />
+        <PrivateField    label="Personal Email"   value={employee.personalEmail} field="personalEmail" type="email" canEdit={canEdit} onSave={onSave} />
+        <PrivateSelectField label="Gender"        value={employee.gender}       field="gender"        canEdit={canEdit} onSave={onSave}
+          options={["Male", "Female", "Non-binary", "Prefer not to say"]} />
+        <PrivateSelectField label="Marital Status" value={employee.maritalStatus} field="maritalStatus" canEdit={canEdit} onSave={onSave}
+          options={["Single", "Married", "Divorced", "Widowed"]} />
+        <PrivateField    label="Date of Joining"  value={employee.joiningDate ? new Date(employee.joiningDate).toLocaleDateString("en-IN") : null} field="_" canEdit={false} onSave={onSave} />
+      </div>
+
+      {/* Bank details */}
+      <div className="rounded-xl border border-border bg-card px-5 py-2">
+        <h3 className="text-sm font-semibold text-foreground py-3 border-b border-border">Bank Details</h3>
+        <PrivateField label="Account Number" value={employee.bankAccountNumber} field="bankAccountNumber" canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="Bank Name"      value={employee.bankName}          field="bankName"          canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="IFSC Code"      value={employee.ifscCode}          field="ifscCode"          canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="PAN No"         value={employee.panNumber}         field="panNumber"         canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="UAN No"         value={employee.uanNumber}         field="uanNumber"         canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="Emp Code"       value={employee.empCode}           field="empCode"           canEdit={canEdit} onSave={onSave} />
+      </div>
+    </div>
+  );
+}
+
 // ── Salary row ────────────────────────────────────────────────────────────────
 function SalaryRow({ label, desc, amount, pct }) {
   const fmt = (n) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -470,9 +566,11 @@ export default function EmployeeDetail() {
       label: "Private Info",
       icon: ShieldCheck,
       content: (
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">
-          Private information (ID proofs, emergency contacts) — coming soon.
-        </div>
+        <PrivateInfoTab
+          employee={employee}
+          canEdit={canEdit || user?.id === employee?.id}
+          onSave={saveField}
+        />
       ),
     },
     ...(canViewSalary ? [{
@@ -533,7 +631,9 @@ export default function EmployeeDetail() {
           <div className="flex-1 min-w-0 space-y-3">
             <div>
               <h1 className="text-2xl font-bold text-foreground">{employee.name}</h1>
-              <p className="text-sm text-muted-foreground">{ROLE_LABELS[employee.role] ?? employee.role}</p>
+              <p className="text-sm text-muted-foreground">
+                {employee.jobTitle || (ROLE_LABELS[employee.role] ?? employee.role)}
+              </p>
               <span className="mt-1 inline-block rounded-full border border-border bg-muted px-3 py-0.5 text-xs text-muted-foreground font-mono">
                 {employee.loginId}
               </span>
@@ -559,6 +659,16 @@ export default function EmployeeDetail() {
               <Building2 size={14} className="shrink-0" />
               <span>{employee.companyName}</span>
             </div>
+            <div className="flex items-center gap-2 text-muted-foreground sm:justify-end">
+              <span className="text-xs">Dept:</span>
+              <span className="text-xs">{ROLE_LABELS[employee.role] ?? employee.role}</span>
+            </div>
+            {employee.managerName && (
+              <div className="flex items-center gap-2 text-muted-foreground sm:justify-end">
+                <span className="text-xs">Manager:</span>
+                <span className="text-xs">{employee.managerName}</span>
+              </div>
+            )}
             {employee.location && (
               <div className="flex items-center gap-2 text-muted-foreground sm:justify-end">
                 <MapPin size={14} className="shrink-0" />
