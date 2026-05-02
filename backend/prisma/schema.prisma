@@ -71,6 +71,23 @@ model User {
   pfRate                    Float     @default(12) @map("pf_rate")
   workingDaysPerWeek        Int       @default(5) @map("working_days_per_week")
   breakTimeHours            Float     @default(1) @map("break_time_hours")
+  // Job
+  jobTitle                  String?   @db.VarChar(100) @map("job_title")
+  managerId                 Int?      @map("manager_id")
+  // Private Info
+  dateOfBirth               DateTime? @db.Date @map("date_of_birth")
+  address                   String?   @db.Text
+  nationality               String?   @db.VarChar(100)
+  personalEmail             String?   @db.VarChar(255) @map("personal_email")
+  gender                    String?   @db.VarChar(20)
+  maritalStatus             String?   @db.VarChar(20) @map("marital_status")
+  // Bank Details
+  bankAccountNumber         String?   @db.VarChar(50)  @map("bank_account_number")
+  bankName                  String?   @db.VarChar(100) @map("bank_name")
+  ifscCode                  String?   @db.VarChar(20)  @map("ifsc_code")
+  panNumber                 String?   @db.VarChar(20)  @map("pan_number")
+  uanNumber                 String?   @db.VarChar(30)  @map("uan_number")
+  empCode                   String?   @db.VarChar(50)  @map("emp_code")
   mustChangePassword        Boolean   @default(true) @map("must_change_password")
   refreshToken              String?   @map("refresh_token")
   forgotPasswordToken       String?   @map("forgot_password_token") @db.VarChar(255)
@@ -78,6 +95,8 @@ model User {
   createdAt                 DateTime  @default(now()) @map("created_at")
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager       User?          @relation("EmployeeManager", fields: [managerId], references: [id])
+  reportees     User[]         @relation("EmployeeManager")
   attendance    Attendance[]
   leaveRequests LeaveRequest[]
   payslips      Payslip[]
@@ -86,6 +105,7 @@ model User {
 
   @@unique([companyId, loginId])
   @@unique([companyId, email])
+  @@index([companyId])
   @@index([email])
   @@index([loginId])
   @@map("users")

@@ -8,6 +8,7 @@ import {
   getPayslipController,
   createPayslipController,
   markPayslipPaidController,
+  getDashboardController,
 } from "../controller/payroll.controller.js";
 
 const router = Router();
@@ -22,6 +23,7 @@ const createValidators = [
   body("deductions").optional().isFloat({ min: 0 }).withMessage("Deductions must be a positive number."),
 ];
 
+router.get(  "/dashboard", requireRole("ADMIN", "PAYROLL_OFFICER", "HR_OFFICER"), getDashboardController);
 router.get(  "/",          listPayslipsController);
 router.post( "/",          requireRole("ADMIN", "PAYROLL_OFFICER"), createValidators, validatorMiddleware, createPayslipController);
 router.get(  "/:id",       getPayslipController);

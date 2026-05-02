@@ -28,6 +28,7 @@ export const getEmployee = async (companyId, employeeId) => {
     where:   { id: employeeId, companyId },
     include: {
       company:        { select: COMPANY_SELECT },
+      manager:        { select: { id: true, firstName: true, lastName: true, name: true } },
       skills:         { orderBy: { createdAt: "asc" } },
       certifications: { orderBy: { createdAt: "asc" } },
     },
@@ -121,6 +122,9 @@ export const updateEmployee = async (companyId, employeeId, data) => {
     firstName, lastName, role, basicSalary, pfNumber, joiningDate,
     mobile, location, about, jobPassion, interests,
     monthlyWage, pfRate, workingDaysPerWeek, breakTimeHours,
+    jobTitle, managerId,
+    dateOfBirth, address, nationality, personalEmail, gender, maritalStatus,
+    bankAccountNumber, bankName, ifscCode, panNumber, uanNumber, empCode,
   } = data;
 
   const updated = await prisma.user.update({
@@ -144,9 +148,24 @@ export const updateEmployee = async (companyId, employeeId, data) => {
       ...(pfRate             != null && { pfRate }),
       ...(workingDaysPerWeek != null && { workingDaysPerWeek }),
       ...(breakTimeHours     != null && { breakTimeHours }),
+      ...(jobTitle           != null && { jobTitle }),
+      ...(managerId          != null && { managerId }),
+      ...(dateOfBirth        != null && { dateOfBirth: new Date(dateOfBirth) }),
+      ...(address            != null && { address }),
+      ...(nationality        != null && { nationality }),
+      ...(personalEmail      != null && { personalEmail }),
+      ...(gender             != null && { gender }),
+      ...(maritalStatus      != null && { maritalStatus }),
+      ...(bankAccountNumber  != null && { bankAccountNumber }),
+      ...(bankName           != null && { bankName }),
+      ...(ifscCode           != null && { ifscCode }),
+      ...(panNumber          != null && { panNumber }),
+      ...(uanNumber          != null && { uanNumber }),
+      ...(empCode            != null && { empCode }),
     },
     include: {
       company:        { select: COMPANY_SELECT },
+      manager:        { select: { id: true, firstName: true, lastName: true, name: true } },
       skills:         { orderBy: { createdAt: "asc" } },
       certifications: { orderBy: { createdAt: "asc" } },
     },

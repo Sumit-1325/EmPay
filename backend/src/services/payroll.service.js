@@ -168,6 +168,108 @@ export const createPayslip = async (companyId, data) => {
   });
 };
 
+export const getPayrollDashboard = async (companyId) => {
+  const currentYear  = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  const [
+    totalEmployees,
+    missingBank,
+    missingManager,
+    recentPayslips,
+    monthlyCostRaw,
+  ] = await Promise.all([
+    prisma.user.count({ where: { companyId, role: { not: "SUPER_ADMIN" } } }),
+
+    prisma.user.count({
+      where: {
+        companyId,
+        role:               { not: "SUPER_ADMIN" },
+        bankAccountNumber:  null,
+      },
+    }),
+
+    prisma.user.count({
+      where: {
+        companyId,
+        role:      { not: "SUPER_ADMIN" },
+        managerId: null,
+      },
+    }),
+
+    // Last 6 payslips across all employees, most recent first
+    prisma.payslip.findMany({
+      where:   { companyId },
+      orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+      take:    10,
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, loginId: true, avatarUrl: true } },
+      },
+    }),
+
+    // Employer cost per month for the last 12 months (sum of netPay)
+    prisma.payslip.groupBy({
+      by:    ["year", "month"],
+      where: {
+        companyId,
+        year:  { gte: currentYear - 1 },
+      },
+      _sum:  { netPay: true },
+      orderBy: [{ year: "asc" }, { month: "asc" }],
+    }),
+  ]);
+
+  // Employee headcount by joining month for the last 12 months
+  const headcountRaw = await prisma.user.findMany({
+    where: {
+      companyId,
+      role:        { not: "SUPER_ADMIN" },
+      joiningDate: { gte: new Date(`${currentYear - 1}-${String(currentMonth).padStart(2, "0")}-01`) },
+    },
+    select: { joiningDate: true },
+  });
+
+  // Build headcount map: "YYYY-MM" → count
+  const headcountMap = {};
+  for (const u of headcountRaw) {
+    const d  = new Date(u.joiningDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    headcountMap[key] = (headcountMap[key] ?? 0) + 1;
+  }
+
+  // Build a full 12-month series for both charts
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(currentYear, currentMonth - 1 - i, 1);
+    months.push({
+      year:  d.getFullYear(),
+      month: d.getMonth() + 1,
+      label: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
+    });
+  }
+
+  const costByMonth = months.map(({ year, month, label }) => {
+    const found = monthlyCostRaw.find((r) => r.year === year && r.month === month);
+    return { label, amount: found?._sum?.netPay ?? 0 };
+  });
+
+  const joiningByMonth = months.map(({ year, month, label }) => {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    return { label, count: headcountMap[key] ?? 0 };
+  });
+
+  return new apiResponse(200, "Dashboard data fetched", {
+    summary: {
+      totalEmployees,
+      missingBank,
+      missingManager,
+    },
+    recentPayslips,
+    costByMonth,
+    joiningByMonth,
+  });
+};
+
 export const markPayslipPaid = async (companyId, payslipId) => {
   const payslip = await prisma.payslip.findFirst({ where: { id: payslipId, companyId } });
   if (!payslip)       throw new apiError(404, "Payslip not found");

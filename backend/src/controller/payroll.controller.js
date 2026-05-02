@@ -1,5 +1,5 @@
 import asyncHandler from "../utils/async-handler.js";
-import { listPayslips, getPayslip, createPayslip, markPayslipPaid } from "../services/payroll.service.js";
+import { listPayslips, getPayslip, createPayslip, markPayslipPaid, getPayrollDashboard } from "../services/payroll.service.js";
 
 export const listPayslipsController = asyncHandler(async (req, res) => {
   const { year, month } = req.query;
@@ -14,6 +14,11 @@ export const getPayslipController = asyncHandler(async (req, res) => {
 
 export const createPayslipController = asyncHandler(async (req, res) => {
   const result = await createPayslip(req.user.companyId, req.body);
+  return res.status(result.statusCode).json(result);
+});
+
+export const getDashboardController = asyncHandler(async (req, res) => {
+  const result = await getPayrollDashboard(req.user.companyId);
   return res.status(result.statusCode).json(result);
 });
 
