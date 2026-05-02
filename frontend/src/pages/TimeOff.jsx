@@ -70,7 +70,8 @@ function ModalShell({ title, subtitle, onClose, children }) {
         </div>
         <div className="overflow-y-auto flex-1">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Plane, X, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ const SELECT_CLS = `${INPUT_CLS} cursor-pointer`;
 
 // ── Temp password reveal ──────────────────────────────────────────────────────
 function TempPasswordCard({ loginId, tempPassword, onClose }) {
-  const [copied, setCopied]   = useState(false);
+  const [copied, setCopied] = useState(false);
   const [visible, setVisible] = useState(false);
   const { toast } = useToast();
 
@@ -72,8 +73,8 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
     });
   }
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md animate-fade-up rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">Employee created</h3>
@@ -119,7 +120,8 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
           Done
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -131,8 +133,8 @@ const INITIAL = {
 
 function CreateEmployeeModal({ onClose, onCreated }) {
   const { toast } = useToast();
-  const [fields, setFields]   = useState(INITIAL);
-  const [errors, setErrors]   = useState({});
+  const [fields, setFields] = useState(INITIAL);
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   function set(key) {
@@ -145,8 +147,8 @@ function CreateEmployeeModal({ onClose, onCreated }) {
   function validate() {
     const errs = {};
     if (!fields.firstName.trim()) errs.firstName = "First name is required";
-    if (!fields.lastName.trim())  errs.lastName  = "Last name is required";
-    if (!fields.email.trim())     errs.email     = "Email is required";
+    if (!fields.lastName.trim()) errs.lastName = "Last name is required";
+    if (!fields.email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) errs.email = "Enter a valid email";
     if (fields.monthlyWage && isNaN(Number(fields.monthlyWage))) errs.monthlyWage = "Must be a number";
     return errs;
@@ -161,12 +163,12 @@ function CreateEmployeeModal({ onClose, onCreated }) {
     try {
       const body = {
         firstName: fields.firstName.trim(),
-        lastName:  fields.lastName.trim(),
-        email:     fields.email.trim().toLowerCase(),
-        role:      fields.role,
+        lastName: fields.lastName.trim(),
+        email: fields.email.trim().toLowerCase(),
+        role: fields.role,
         ...(fields.monthlyWage && { monthlyWage: parseFloat(fields.monthlyWage) }),
-        ...(fields.joiningDate  && { joiningDate: fields.joiningDate }),
-        ...(fields.pfNumber     && { pfNumber: fields.pfNumber.trim() }),
+        ...(fields.joiningDate && { joiningDate: fields.joiningDate }),
+        ...(fields.pfNumber && { pfNumber: fields.pfNumber.trim() }),
       };
       const res = await api.post("/employees", body);
       onCreated(res.data.employee, res.data.tempPassword);
@@ -183,13 +185,13 @@ function CreateEmployeeModal({ onClose, onCreated }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div className="w-full max-w-lg animate-fade-up rounded-2xl border border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
+      <div className="w-full max-w-lg animate-fade-up rounded-2xl border border-border bg-card shadow-2xl overflow-hidden max-h-[calc(100vh-5rem)] overflow-y-auto">
 
         {/* Gradient header */}
         <div className="relative bg-gradient-to-r from-primary to-secondary px-6 py-5">
-          <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)"}} />
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)" }} />
           <div className="flex items-center justify-between relative">
             <div>
               <h2 className="text-base font-bold text-white">New Employee</h2>
@@ -263,22 +265,23 @@ function CreateEmployeeModal({ onClose, onCreated }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Employees() {
-  const navigate  = useNavigate();
-  const { user }  = useAuth();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  const [employees,     setEmployees]     = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
-  const [search,        setSearch]        = useState("");
-  const [loading,       setLoading]       = useState(true);
-  const [showCreate,    setShowCreate]    = useState(false);
-  const [createdCreds,  setCreatedCreds]  = useState(null); // { loginId, tempPassword }
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createdCreds, setCreatedCreds] = useState(null); // { loginId, tempPassword }
 
   const canCreate = MANAGER_ROLES.includes(user?.role);
 
