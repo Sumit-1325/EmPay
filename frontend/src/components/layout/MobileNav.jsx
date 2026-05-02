@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { X, LayoutDashboard, Users, Briefcase, Activity, BarChart2, Settings } from "lucide-react";
 import { useContext } from "react";
 import { LayoutContext } from "@/context/LayoutContext";
+import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +12,12 @@ const NAV_ITEMS = [
   { to: ROUTES.DEALS,      icon: Briefcase,        label: "Deals" },
   { to: ROUTES.ACTIVITIES, icon: Activity,         label: "Activities" },
   { to: ROUTES.REPORTS,    icon: BarChart2,         label: "Reports" },
-  { to: ROUTES.SETTINGS,   icon: Settings,         label: "Settings" },
+  { to: ROUTES.SETTINGS,   icon: Settings,         label: "Settings", adminOnly: true },
 ];
 
 export function MobileNav() {
   const { mobileNavOpen, closeMobileNav } = useContext(LayoutContext);
+  const { user } = useAuth();
 
   if (!mobileNavOpen) return null;
 
@@ -45,7 +47,7 @@ export function MobileNav() {
         </div>
 
         <div className="space-y-1 p-3">
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || user?.role === "ADMIN").map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

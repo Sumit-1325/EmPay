@@ -89,21 +89,23 @@ export function Sidebar() {
 
       {/* Settings + collapse toggle */}
       <div className="border-t border-border p-3 space-y-1">
-        <NavLink
-          to={ROUTES.SETTINGS}
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-ring",
-              isActive
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )
-          }
-          title={!isOpen ? "Settings" : undefined}
-        >
-          <Settings size={18} className="shrink-0" />
-          {isOpen && <span className="animate-fade-in">Settings</span>}
-        </NavLink>
+        {user?.role === "ADMIN" && (
+          <NavLink
+            to={ROUTES.SETTINGS}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-ring",
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )
+            }
+            title={!isOpen ? "Settings" : undefined}
+          >
+            <Settings size={18} className="shrink-0" />
+            {isOpen && <span className="animate-fade-in">Settings</span>}
+          </NavLink>
+        )}
 
         <button
           onClick={toggle}

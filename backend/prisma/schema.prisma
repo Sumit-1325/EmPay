@@ -159,17 +159,18 @@ model Attendance {
 }
 
 model LeaveRequest {
-  id         Int         @id @default(autoincrement())
-  companyId  Int         @map("company_id")
-  userId     Int         @map("user_id")
-  leaveType  String      @map("leave_type") @db.VarChar(50)
-  startDate  DateTime    @map("start_date") @db.Date
-  endDate    DateTime    @map("end_date") @db.Date
-  reason     String?
-  status     LeaveStatus @default(PENDING)
-  isPaid     Boolean     @default(true) @map("is_paid") // unpaid leave reduces payable days
-  approvedBy Int?        @map("approved_by")
-  createdAt  DateTime    @default(now()) @map("created_at")
+  id            Int         @id @default(autoincrement())
+  companyId     Int         @map("company_id")
+  userId        Int         @map("user_id")
+  leaveType     String      @map("leave_type") @db.VarChar(50)
+  startDate     DateTime    @map("start_date") @db.Date
+  endDate       DateTime    @map("end_date") @db.Date
+  reason        String?
+  status        LeaveStatus @default(PENDING)
+  isPaid        Boolean     @default(true) @map("is_paid") // unpaid leave reduces payable days
+  approvedBy    Int?        @map("approved_by")
+  attachmentUrl String?     @map("attachment_url")         // Cloudinary URL for leave certificate/doc
+  createdAt     DateTime    @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])

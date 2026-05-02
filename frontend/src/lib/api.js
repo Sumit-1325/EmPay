@@ -102,7 +102,12 @@ async function request(path, options = {}) {
 
 export const api = {
   get:    (path)              => request(path, { method: "GET" }),
-  post:   (path, body)        => request(path, { method: "POST",   body: JSON.stringify(body) }),
+  post:   (path, body)        => {
+    if (body instanceof FormData) {
+      return request(path, { method: "POST", body });
+    }
+    return request(path, { method: "POST", body: JSON.stringify(body) });
+  },
   put:    (path, body)        => request(path, { method: "PUT",    body: JSON.stringify(body) }),
   patch:  (path, body, opts)  => {
     // Allow FormData uploads — skip JSON serialization and Content-Type override

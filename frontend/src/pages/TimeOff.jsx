@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Upload, Plus, Check, XCircle, Trash2 } from "lucide-react";
+import { X, Upload, Plus, Check, XCircle, Trash2, Paperclip } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useFetch } from "@/hooks/useFetch";
 import { useToast } from "@/context/ToastContext";
@@ -83,6 +83,7 @@ function RequestModal({ onClose, onSuccess, currentUser }) {
     endDate:   "",
     reason:    "",
   });
+  const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const allocation = form.startDate && form.endDate && form.endDate >= form.startDate
@@ -102,13 +103,14 @@ function RequestModal({ onClose, onSuccess, currentUser }) {
     setLoading(true);
     try {
       const type = LEAVE_TYPES.find((t) => t.value === form.leaveType);
-      await api.post("/leave", {
-        leaveType: form.leaveType,
-        startDate: form.startDate,
-        endDate:   form.endDate,
-        reason:    form.reason || undefined,
-        isPaid:    type?.isPaid ?? true,
-      });
+      const fd = new FormData();
+      fd.append("leaveType", form.leaveType);
+      fd.append("startDate", form.startDate);
+      fd.append("endDate",   form.endDate);
+      fd.append("isPaid",    type?.isPaid === false ? "false" : "true");
+      if (form.reason) fd.append("reason", form.reason);
+      if (attachment)  fd.append("attachment", attachment);
+      await api.post("/leave", fd);
       toast({ title: "Leave request submitted", variant: "success" });
       onSuccess();
     } catch (err) {
@@ -124,7 +126,14 @@ function RequestModal({ onClose, onSuccess, currentUser }) {
         {/* Leave type */}
         <div className="space-y-1.5">
           <label className={MODAL_LABEL}>Time Off Type</label>
-          <select value={form.leaveType} onChange={set("leaveType")} className={MODAL_INPUT}>
+          <select
+            value={form.leaveType}
+            onChange={(e) => {
+              set("leaveType")(e);
+              if (e.target.value !== "Sick Leave") setAttachment(null);
+            }}
+            className={MODAL_INPUT}
+          >
             {LEAVE_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
@@ -166,15 +175,27 @@ function RequestModal({ onClose, onSuccess, currentUser }) {
           />
         </div>
 
-        {/* Attachment */}
-        <div className="flex items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
-            <Upload size={13} />
-            Attach document
-            <input type="file" className="hidden" accept=".pdf,image/*" />
-          </label>
-          <span className="text-[11px] text-muted-foreground">Sick leave certificate</span>
-        </div>
+        {/* Attachment — only for Sick Leave */}
+        {form.leaveType === "Sick Leave" && (
+          <div className="space-y-1.5">
+            <label className={MODAL_LABEL}>Attachment <span className="normal-case text-muted-foreground/60">(sick leave certificate)</span></label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
+              <Upload size={13} />
+              {attachment ? attachment.name : "Attach document image"}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {attachment && (
+              <p className="text-[11px] text-muted-foreground truncate">{attachment.name} — {(attachment.size / 1024).toFixed(0)} KB
+                <button type="button" onClick={() => setAttachment(null)} className="ml-2 text-destructive hover:underline">remove</button>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
@@ -204,6 +225,7 @@ function AdminRequestForm({ onClose, onSuccess }) {
     endDate:      "",
     reason:       "",
   });
+  const [attachment, setAttachment] = useState(null);
 
   const { data: empData } = useFetch(() => api.get("/employees"), []);
   const employees = empData?.employees ?? [];
@@ -221,14 +243,15 @@ function AdminRequestForm({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const type = LEAVE_TYPES.find((t) => t.value === form.leaveType);
-      await api.post("/leave", {
-        targetUserId: parseInt(form.targetUserId),
-        leaveType:    form.leaveType,
-        startDate:    form.startDate,
-        endDate:      form.endDate,
-        reason:       form.reason || undefined,
-        isPaid:       type?.isPaid ?? true,
-      });
+      const fd = new FormData();
+      fd.append("targetUserId", form.targetUserId);
+      fd.append("leaveType",    form.leaveType);
+      fd.append("startDate",    form.startDate);
+      fd.append("endDate",      form.endDate);
+      fd.append("isPaid",       type?.isPaid === false ? "false" : "true");
+      if (form.reason) fd.append("reason", form.reason);
+      if (attachment)  fd.append("attachment", attachment);
+      await api.post("/leave", fd);
       toast({ title: "Leave request created", variant: "success" });
       onSuccess();
     } catch (err) {
@@ -255,7 +278,14 @@ function AdminRequestForm({ onClose, onSuccess }) {
         {/* Leave type */}
         <div className="space-y-1.5">
           <label className={MODAL_LABEL}>Time Off Type</label>
-          <select value={form.leaveType} onChange={set("leaveType")} className={MODAL_INPUT}>
+          <select
+            value={form.leaveType}
+            onChange={(e) => {
+              set("leaveType")(e);
+              if (e.target.value !== "Sick Leave") setAttachment(null);
+            }}
+            className={MODAL_INPUT}
+          >
             {LEAVE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
@@ -290,7 +320,27 @@ function AdminRequestForm({ onClose, onSuccess }) {
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none" />
         </div>
 
-        {/* Footer */}
+        {/* Attachment — only for Sick Leave */}
+        {form.leaveType === "Sick Leave" && (
+          <div className="space-y-1.5">
+            <label className={MODAL_LABEL}>Attachment <span className="normal-case text-muted-foreground/60">(sick leave certificate)</span></label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
+              <Upload size={13} />
+              {attachment ? attachment.name : "Attach document image"}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {attachment && (
+              <p className="text-[11px] text-muted-foreground truncate">{attachment.name} — {(attachment.size / 1024).toFixed(0)} KB
+                <button type="button" onClick={() => setAttachment(null)} className="ml-2 text-destructive hover:underline">remove</button>
+              </p>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
           <button type="button" onClick={onClose}
             className="h-9 rounded-lg border border-border bg-transparent px-4 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
@@ -340,6 +390,18 @@ function LeaveRow({ request, canApprove, isEmployee, onApprove, onDelete }) {
         </span>
       </div>
       <div className="px-4 py-3 flex items-center gap-1.5">
+        {/* Attachment link */}
+        {request.attachmentUrl && (
+          <a
+            href={request.attachmentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-7 w-7 rounded-md bg-muted text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+            title="View attachment"
+          >
+            <Paperclip size={13} />
+          </a>
+        )}
         {canApprove && request.status === "PENDING" && (
           <>
             <button onClick={() => act("approve")} disabled={!!acting} aria-label="Approve"

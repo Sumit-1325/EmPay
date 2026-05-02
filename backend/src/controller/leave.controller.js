@@ -10,6 +10,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   const result = await createLeaveRequest(
     { companyId: req.user.companyId, userId: req.user.id, role: req.user.role },
     req.body,
+    req.file?.path   // optional local path from multer; undefined if no file uploaded
   );
   return res.status(result.statusCode).json(result);
 });

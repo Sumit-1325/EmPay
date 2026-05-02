@@ -32,6 +32,28 @@ export const uploadToCloudinary = async (localFilePath) => {
   }
 };
 
+export const uploadLeaveAttachment = async (localFilePath) => {
+  try {
+    if (!localFilePath) return null;
+
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: "auto",  // images only now — auto handles JPEG/PNG/GIF/WEBP correctly
+      folder: "leave-attachments"
+    });
+
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+
+    return new apiResponse(200, "Attachment uploaded successfully", response.secure_url);
+  } catch (error) {
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+    throw new apiError(500, "Cloudinary attachment upload failed", [{ issue: error.message }]);
+  }
+};
+
 export const deleteFromCloudinary = async (url) => {
   try {
     if (!url) return null;

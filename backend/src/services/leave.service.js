@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { apiError } from "../utils/api-error.js";
 import { apiResponse } from "../utils/api-response.js";
+import { uploadLeaveAttachment } from "../utils/cloudinary.js";
 
 export const listLeaveRequests = async ({ companyId, userId, role }) => {
   const where = { companyId };
@@ -15,7 +16,7 @@ export const listLeaveRequests = async ({ companyId, userId, role }) => {
   return new apiResponse(200, "Leave requests fetched successfully", { requests, total: requests.length });
 };
 
-export const createLeaveRequest = async ({ companyId, userId, role }, data) => {
+export const createLeaveRequest = async ({ companyId, userId, role }, data, localFilePath) => {
   const { leaveType, startDate, endDate, reason, isPaid = true, targetUserId } = data;
 
   if (new Date(startDate) > new Date(endDate)) {
@@ -31,16 +32,24 @@ export const createLeaveRequest = async ({ companyId, userId, role }, data) => {
     if (!emp) throw new apiError(404, "Employee not found");
   }
 
+  // Upload attachment to Cloudinary if provided
+  let attachmentUrl = null;
+  if (localFilePath) {
+    const uploaded = await uploadLeaveAttachment(localFilePath);
+    attachmentUrl = uploaded?.data ?? null;
+  }
+
   const request = await prisma.leaveRequest.create({
     data: {
       companyId,
-      userId:    forUserId,
+      userId:       forUserId,
       leaveType,
-      startDate: new Date(startDate),
-      endDate:   new Date(endDate),
-      reason:    reason ?? null,
-      isPaid:    Boolean(isPaid),
-      status:    "PENDING",
+      startDate:    new Date(startDate),
+      endDate:      new Date(endDate),
+      reason:       reason ?? null,
+      isPaid:       isPaid === false || isPaid === "false" ? false : true,
+      status:       "PENDING",
+      attachmentUrl,
     },
     include: { user: { select: { id: true, firstName: true, lastName: true, loginId: true } } },
   });

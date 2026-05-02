@@ -12,9 +12,9 @@ const storage = multer.diskStorage({
   }
 });
 
-const fileFilter = (req, file, cb) => {
+// Images only — used for avatar uploads
+const imageFilter = (req, file, cb) => {
   const allowedMimes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-  
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -22,8 +22,24 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Images + document images — used for leave certificate attachments
+const docFilter = (req, file, cb) => {
+  const allowedMimes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new apiError(400, "Only image files are allowed for attachments", [{ field: "file", issue: "Invalid file type" }]), false);
+  }
+};
+
 export const upload = multer({
   storage,
-  fileFilter,
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+export const uploadDoc = multer({
+  storage,
+  fileFilter: docFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
