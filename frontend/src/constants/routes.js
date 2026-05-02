@@ -1,0 +1,14 @@
+export const ROUTES = {
+  LOGIN:            "/login",
+  REGISTER:         "/register",
+  CHANGE_PASSWORD:  "/change-password",
+  FORGOT_PASSWORD:  "/forgot-password",
+  RESET_PASSWORD:   "/reset-password",
+  DASHBOARD:        "/",
+  EMPLOYEES:        "/employees",
+  ATTENDANCE:       "/attendance",
+  TIME_OFF:         "/time-off",
+  PAYROLL:          "/payroll",
+  REPORTS:          "/reports",
+  SETTINGS:         "/settings",
+};
