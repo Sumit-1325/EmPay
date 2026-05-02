@@ -202,38 +202,88 @@ function CertsPanel({ certs, employeeId, canEdit, onAdded, onDeleted }) {
   );
 }
 
-// ── Private Info field ────────────────────────────────────────────────────────
-function PrivateField({ label, value, field, canEdit, onSave, type = "text" }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(value ?? "");
+// ── Field validators ─────────────────────────────────────────────────────────
+const FIELD_VALIDATORS = {
+  bankAccountNumber: (v) => {
+    if (!v) return null;
+    if (!/^\d+$/.test(v))        return "Account number must contain digits only (no letters)";
+    if (v.length < 9)            return "Account number must be at least 9 digits";
+    if (v.length > 18)           return "Account number cannot exceed 18 digits";
+    return null;
+  },
+  ifscCode: (v) => {
+    if (!v) return null;
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(v.trim()))
+      return "Invalid IFSC — format: 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234)";
+    return null;
+  },
+  panNumber: (v) => {
+    if (!v) return null;
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(v.trim()))
+      return "Invalid PAN — format: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)";
+    return null;
+  },
+  uanNumber: (v) => {
+    if (!v) return null;
+    if (!/^\d{12}$/.test(v)) return "UAN must be exactly 12 digits";
+    return null;
+  },
+};
 
-  useEffect(() => { setDraft(value ?? ""); }, [value]);
+// ── Private Info field ────────────────────────────────────────────────────────
+function PrivateField({ label, value, field, canEdit, onSave, type = "text", digitsOnly = false }) {
+  const [editing, setEditing]   = useState(false);
+  const [draft, setDraft]       = useState(value ?? "");
+  const [fieldErr, setFieldErr] = useState("");
+
+  useEffect(() => { setDraft(value ?? ""); setFieldErr(""); }, [value]);
+
+  function handleChange(e) {
+    let val = e.target.value;
+    if (digitsOnly) val = val.replace(/\D/g, ""); // strip non-digits live
+    setDraft(val);
+    if (fieldErr) setFieldErr("");
+  }
 
   async function handleBlur() {
     setEditing(false);
-    if (draft !== (value ?? "")) await onSave(field, draft || null);
+    const trimmed = draft.trim();
+    const validator = FIELD_VALIDATORS[field];
+    if (validator) {
+      const err = validator(trimmed);
+      if (err) { setFieldErr(err); return; }
+    }
+    setFieldErr("");
+    if (trimmed !== (value ?? "")) await onSave(field, trimmed || null);
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 py-2.5 border-b border-border last:border-0">
-      <p className="text-xs text-muted-foreground shrink-0 w-36">{label}</p>
-      {canEdit && editing ? (
-        <input
-          autoFocus
-          type={type}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={handleBlur}
-          className="flex-1 h-7 rounded-lg border border-border bg-muted/50 px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      ) : (
-        <button
-          onClick={() => canEdit && setEditing(true)}
-          className={`flex-1 text-right text-sm ${value ? "text-foreground" : "text-muted-foreground italic"} ${canEdit ? "hover:text-primary transition-colors" : ""}`}
-        >
-          {value || (canEdit ? "Add…" : "—")}
-        </button>
-      )}
+    <div className="py-2.5 border-b border-border last:border-0">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-xs text-muted-foreground shrink-0 w-36">{label}</p>
+        {canEdit && editing ? (
+          <input
+            autoFocus
+            type={type}
+            inputMode={digitsOnly ? "numeric" : undefined}
+            value={draft}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={cn(
+              "flex-1 h-7 rounded-lg border bg-muted/50 px-2 text-sm text-foreground focus:outline-none focus:ring-2 transition-colors",
+              fieldErr ? "border-destructive focus:ring-destructive/40" : "border-border focus:ring-ring"
+            )}
+          />
+        ) : (
+          <button
+            onClick={() => canEdit && setEditing(true)}
+            className={`flex-1 text-right text-sm ${value ? "text-foreground" : "text-muted-foreground italic"} ${canEdit ? "hover:text-primary transition-colors" : ""}`}
+          >
+            {value || (canEdit ? "Add…" : "—")}
+          </button>
+        )}
+      </div>
+      {fieldErr && <p className="mt-1 text-[11px] text-destructive text-right">{fieldErr}</p>}
     </div>
   );
 }
@@ -287,11 +337,11 @@ function PrivateInfoTab({ employee, canEdit, onSave }) {
       {/* Bank details */}
       <div className="rounded-xl border border-border bg-card px-5 py-2">
         <h3 className="text-sm font-semibold text-foreground py-3 border-b border-border">Bank Details</h3>
-        <PrivateField label="Account Number" value={employee.bankAccountNumber} field="bankAccountNumber" canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="Account Number" value={employee.bankAccountNumber} field="bankAccountNumber" canEdit={canEdit} onSave={onSave} digitsOnly />
         <PrivateField label="Bank Name"      value={employee.bankName}          field="bankName"          canEdit={canEdit} onSave={onSave} />
         <PrivateField label="IFSC Code"      value={employee.ifscCode}          field="ifscCode"          canEdit={canEdit} onSave={onSave} />
         <PrivateField label="PAN No"         value={employee.panNumber}         field="panNumber"         canEdit={canEdit} onSave={onSave} />
-        <PrivateField label="UAN No"         value={employee.uanNumber}         field="uanNumber"         canEdit={canEdit} onSave={onSave} />
+        <PrivateField label="UAN No"         value={employee.uanNumber}         field="uanNumber"         canEdit={canEdit} onSave={onSave} digitsOnly />
         <PrivateField label="Emp Code"       value={employee.empCode}           field="empCode"           canEdit={canEdit} onSave={onSave} />
       </div>
     </div>

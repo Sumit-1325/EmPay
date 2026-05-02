@@ -129,13 +129,17 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
 const INITIAL = {
   firstName: "", lastName: "", email: "",
   role: "EMPLOYEE", monthlyWage: "", joiningDate: "", pfNumber: "",
+  managerId: "",
 };
 
-function CreateEmployeeModal({ onClose, onCreated }) {
+function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
   const { toast } = useToast();
   const [fields, setFields] = useState(INITIAL);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  // Only EMPLOYEE-role users can be set as manager
+  const managerOptions = employees.filter((e) => e.role === "EMPLOYEE");
 
   function set(key) {
     return (e) => {
@@ -168,7 +172,8 @@ function CreateEmployeeModal({ onClose, onCreated }) {
         role: fields.role,
         ...(fields.monthlyWage && { monthlyWage: parseFloat(fields.monthlyWage) }),
         ...(fields.joiningDate && { joiningDate: fields.joiningDate }),
-        ...(fields.pfNumber && { pfNumber: fields.pfNumber.trim() }),
+        ...(fields.pfNumber    && { pfNumber: fields.pfNumber.trim() }),
+        ...(fields.managerId   && { managerId: parseInt(fields.managerId) }),
       };
       const res = await api.post("/employees", body);
       onCreated(res.data.employee, res.data.tempPassword);
@@ -243,6 +248,17 @@ function CreateEmployeeModal({ onClose, onCreated }) {
 
           <Field label="PF Number" error={errors.pfNumber}>
             <input className={INPUT_CLS} placeholder="Optional" value={fields.pfNumber} onChange={set("pfNumber")} />
+          </Field>
+
+          <Field label="Manager" error={errors.managerId}>
+            <select className={SELECT_CLS} value={fields.managerId} onChange={set("managerId")}>
+              <option value="">None / No Manager</option>
+              {managerOptions.map((emp) => (
+                <option key={emp.id} value={String(emp.id)}>
+                  {[emp.firstName, emp.lastName].filter(Boolean).join(" ") || emp.loginId}
+                </option>
+              ))}
+            </select>
           </Field>
 
           {/* Footer */}
@@ -375,6 +391,7 @@ export default function Employees() {
         <CreateEmployeeModal
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
+          employees={employees}
         />
       )}
 

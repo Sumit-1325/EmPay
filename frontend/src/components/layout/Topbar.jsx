@@ -108,55 +108,91 @@ function CheckInOut() {
       })
     : null;
 
-  // "Done for today"
-  if (isCheckedIn && isCheckedOut) {
-    return (
-      <div className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5">
-        <span className="h-2 w-2 rounded-full bg-rose-500" />
-        <span className="text-xs font-medium text-muted-foreground">Done for today</span>
-      </div>
-    );
+  // ── Unified toggle ──────────────────────────────────────────────────────────
+  // States: not-checked-in | checked-in | done-for-today
+  const isOn       = isCheckedIn && !isCheckedOut;
+  const isDone     = isCheckedIn && isCheckedOut;
+  const canToggle  = !loading && !isDone && (isOn || withinHours);
+
+  function handleToggle() {
+    if (isDone || loading) return;
+    if (isOn) {
+      handleCheckOut();
+    } else {
+      handleCheckIn();
+    }
   }
 
-  // Checked in — show "Since HH:MM" + Check Out button (always allowed)
-  if (isCheckedIn) {
-    return (
-      <div className="hidden sm:flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-muted-foreground">Since {checkInTime}</span>
-        </div>
-        <button
-          onClick={handleCheckOut}
-          disabled={loading}
-          aria-label="Check out"
-          className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-white hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm"
-        >
-          <LogOutIcon size={15} />
-        </button>
-      </div>
-    );
-  }
+  // Colour scheme
+  const trackCls = isDone
+    ? "bg-emerald-500/20 border-emerald-500/30"
+    : isOn
+    ? "bg-emerald-500 border-emerald-600"
+    : withinHours
+    ? "bg-muted/60 border-border hover:bg-muted"
+    : "bg-muted/30 border-border opacity-50";
 
-  // Not checked in — show Check In button, disabled outside work hours
+  const knobCls = isDone
+    ? "translate-x-[22px] bg-emerald-500 shadow-md"
+    : isOn
+    ? "translate-x-[22px] bg-white shadow-md"
+    : "translate-x-[2px] bg-muted-foreground/50";
+
+  const label = isDone
+    ? "Done"
+    : isOn
+    ? `Since ${checkInTime}`
+    : withinHours
+    ? "Check In"
+    : `Opens ${fmt12(workStart)}`;
+
+  const tooltipText = isDone
+    ? "Attendance recorded for today"
+    : !withinHours && !isOn
+    ? `Check-in allowed ${fmt12(workStart)} – ${fmt12(workEnd)}`
+    : isOn
+    ? "Click to check out"
+    : "Click to check in";
+
   return (
-    <div className="hidden sm:flex items-center gap-2">
-      <button
-        onClick={handleCheckIn}
-        disabled={loading || !withinHours}
-        aria-label="Check in"
-        title={!withinHours ? `Check-in allowed ${fmt12(workStart)} – ${fmt12(workEnd)}` : "Check in"}
+    <button
+      onClick={handleToggle}
+      disabled={!canToggle}
+      aria-label={tooltipText}
+      title={tooltipText}
+      className={cn(
+        "hidden sm:flex items-center gap-2 rounded-full border px-2 py-1.5 pr-3 text-xs font-medium transition-all duration-200 select-none",
+        canToggle ? "cursor-pointer" : "cursor-not-allowed",
+        trackCls
+      )}
+    >
+      {/* Knob */}
+      <span
         className={cn(
-          "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-          withinHours
-            ? "border-border bg-muted/40 text-foreground hover:bg-muted disabled:opacity-60"
-            : "border-border bg-muted/20 text-muted-foreground cursor-not-allowed opacity-60"
+          "relative h-5 w-10 rounded-full border transition-colors duration-200 shrink-0",
+          isOn ? "bg-emerald-500 border-emerald-600" : isDone ? "bg-emerald-500/40 border-emerald-500/50" : "bg-muted-foreground/20 border-border"
         )}
       >
-        <span className={cn("h-2 w-2 rounded-full", withinHours ? "bg-rose-400" : "bg-muted-foreground/40")} />
-        {withinHours ? "Check In" : `Opens ${fmt12(workStart)}`}
-      </button>
-    </div>
+        <span
+          className={cn(
+            "absolute top-0.5 h-4 w-4 rounded-full transition-transform duration-200 flex items-center justify-center",
+            knobCls
+          )}
+        >
+          {loading && (
+            <span className="h-2.5 w-2.5 rounded-full border-2 border-current border-t-transparent animate-spin opacity-70" />
+          )}
+        </span>
+      </span>
+
+      {/* Label */}
+      <span className={cn(
+        "text-xs font-medium",
+        isDone ? "text-emerald-700 dark:text-emerald-300" : isOn ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"
+      )}>
+        {label}
+      </span>
+    </button>
   );
 }
 

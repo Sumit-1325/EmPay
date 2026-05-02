@@ -88,6 +88,41 @@ export const getAttendanceSummary = async ({ companyId, userId, month, year }) =
 // ─── Check In ─────────────────────────────────────────────────────────────────
 
 export const checkIn = async ({ companyId, userId }) => {
+  // ── Work-hours gate ────────────────────────────────────────────────────────
+  const company = await prisma.company.findUnique({
+    where:  { id: companyId },
+    select: { workStartTime: true, workEndTime: true },
+  });
+
+  if (company?.workStartTime && company?.workEndTime) {
+    // Get current time as HH:MM in IST (Asia/Kolkata)
+    const nowIST     = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(new Date()); // e.g. "09:05"
+
+    const toMin = (hhmm) => {
+      const [h = 0, m = 0] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const nowMin   = toMin(nowIST);
+    const startMin = toMin(company.workStartTime);
+    const endMin   = toMin(company.workEndTime);
+
+    if (nowMin < startMin || nowMin > endMin) {
+      const fmt = (hhmm) => {
+        const [h, m] = hhmm.split(":").map(Number);
+        const ampm   = h >= 12 ? "PM" : "AM";
+        return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${ampm}`;
+      };
+      throw new apiError(
+        400,
+        `Check-in is only allowed between ${fmt(company.workStartTime)} and ${fmt(company.workEndTime)}.`
+      );
+    }
+  }
+
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
