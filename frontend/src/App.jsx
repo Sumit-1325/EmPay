@@ -19,6 +19,7 @@ const Employees          = lazy(() => import("@/pages/Employees"));
 const EmployeeDetail     = lazy(() => import("@/pages/EmployeeDetail"));
 const Attendance         = lazy(() => import("@/pages/Attendance"));
 const TimeOff            = lazy(() => import("@/pages/TimeOff"));
+const LeaveAllocation    = lazy(() => import("@/pages/LeaveAllocation"));
 const Payroll            = lazy(() => import("@/pages/Payroll"));
 const Reports            = lazy(() => import("@/pages/Reports"));
 const Settings           = lazy(() => import("@/pages/Settings"));
@@ -73,6 +74,7 @@ function AppRoutes() {
             <Route path={ROUTES.EMPLOYEE_DETAIL} element={<EmployeeDetail />} />
             <Route path={ROUTES.ATTENDANCE} element={<Attendance />} />
             <Route path={ROUTES.TIME_OFF}   element={<TimeOff />} />
+            <Route path={ROUTES.ALLOCATION} element={<LeaveAllocation />} />
             <Route path={ROUTES.PAYROLL}    element={<Payroll />} />
             <Route path={ROUTES.REPORTS}    element={<Reports />} />
             <Route path={ROUTES.SETTINGS}   element={<Settings />} />

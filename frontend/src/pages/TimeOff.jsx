@@ -16,8 +16,7 @@ const LEAVE_TYPES = [
   { value: "Unpaid Leave",   label: "Unpaid Leave",    isPaid: false },
 ];
 
-// Default yearly allocations (no DB model — fixed policy)
-const LEAVE_ALLOC = { "Paid Time Off": 24, "Sick Leave": 7, "Unpaid Leave": 0 };
+// No static LEAVE_ALLOC — loaded live from /leave/allocations/me
 
 const STATUS_STYLE = {
   PENDING:  "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -389,19 +388,21 @@ function LeaveRow({ request, canApprove, isEmployee, onApprove, onDelete }) {
           {request.status}
         </span>
       </div>
-      <div className="px-4 py-3 flex items-center gap-1.5">
-        {/* Attachment link */}
-        {request.attachmentUrl && (
-          <a
-            href={request.attachmentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-7 w-7 rounded-md bg-muted text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
-            title="View attachment"
-          >
-            <Paperclip size={13} />
-          </a>
-        )}
+      <div className="px-4 py-3 flex items-center justify-end gap-1.5">
+        {/* Attachment — fixed-width slot so action buttons never shift */}
+        <span className="w-7 flex items-center justify-center">
+          {request.attachmentUrl && (
+            <a
+              href={request.attachmentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-7 w-7 rounded-md bg-muted text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+              title="View attachment"
+            >
+              <Paperclip size={13} />
+            </a>
+          )}
+        </span>
         {canApprove && request.status === "PENDING" && (
           <>
             <button onClick={() => act("approve")} disabled={!!acting} aria-label="Approve"
@@ -438,18 +439,31 @@ export default function TimeOff() {
   const { data, loading, refetch } = useFetch(() => api.get("/leave"), []);
   const requests = data?.requests ?? [];
 
-  // ── Leave balance (employee view only) ──────────────────────────────────────
+  // ── My allocations (live from DB) ───────────────────────────────────────────
+  const { data: allocData } = useFetch(() => isEmployee ? api.get("/leave/allocations/me") : Promise.resolve(null), [isEmployee]);
+  const myAllocations = allocData?.allocations ?? [];
+
+  // Build a map: leaveType → allocated days (sum if multiple records)
+  const allocMap = useMemo(() => {
+    const map = {};
+    for (const a of myAllocations) {
+      map[a.leaveType] = (map[a.leaveType] ?? 0) + a.days;
+    }
+    return map;
+  }, [myAllocations]);
+
+  // ── Leave balance (allocated − approved used) ────────────────────────────
   const balance = useMemo(() => {
     const approved = requests.filter((r) => r.status === "APPROVED");
     return Object.fromEntries(
-      Object.entries(LEAVE_ALLOC).map(([type, total]) => {
+      Object.entries(allocMap).map(([type, total]) => {
         const used = approved
           .filter((r) => r.leaveType === type)
           .reduce((s, r) => s + countDays(r.startDate, r.endDate), 0);
-        return [type, Math.max(0, total - used)];
+        return [type, { total, remaining: Math.max(0, total - used), used }];
       })
     );
-  }, [requests]);
+  }, [requests, allocMap]);
 
   async function handleApprove(id, action) {
     try {
@@ -496,24 +510,24 @@ export default function TimeOff() {
       {/* Leave balance cards (employee only) */}
       {isEmployee && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card px-5 py-4">
-            <p className="text-sm font-semibold text-primary">Paid Time Off</p>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {String(balance["Paid Time Off"]).padStart(2, "0")}
-              <span className="text-sm font-normal text-muted-foreground ml-1">Days Available</span>
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card px-5 py-4">
-            <p className="text-sm font-semibold text-primary">Sick Leave</p>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {String(balance["Sick Leave"]).padStart(2, "0")}
-              <span className="text-sm font-normal text-muted-foreground ml-1">Days Available</span>
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card px-5 py-4">
-            <p className="text-sm font-semibold text-muted-foreground">Unpaid Leave</p>
-            <p className="text-sm text-muted-foreground mt-1">No limit</p>
-          </div>
+          {myAllocations.length === 0 ? (
+            <div className="sm:col-span-3 rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+              No leave allocations assigned yet. Contact HR to set up your leave balance.
+            </div>
+          ) : (
+            Object.entries(balance).map(([type, { total, remaining, used }]) => (
+              <div key={type} className="rounded-xl border border-border bg-card px-5 py-4">
+                <p className="text-sm font-semibold text-primary">{type}</p>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {String(remaining).padStart(2, "0")}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">Days Available</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {used} used · {total} allocated
+                </p>
+              </div>
+            ))
+          )}
         </div>
       )}
 

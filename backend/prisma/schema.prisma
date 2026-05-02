@@ -42,10 +42,11 @@ model Company {
   workEndTime    String   @default("17:00") @map("work_end_time")   @db.VarChar(5)
   createdAt      DateTime @default(now())   @map("created_at")
 
-  users         User[]
-  attendance    Attendance[]
-  leaveRequests LeaveRequest[]
-  payslips      Payslip[]
+  users              User[]
+  attendance         Attendance[]
+  leaveRequests      LeaveRequest[]
+  leaveAllocations   LeaveAllocation[]
+  payslips           Payslip[]
 
   @@map("companies")
 }
@@ -101,6 +102,8 @@ model User {
   reportees     User[]         @relation("EmployeeManager")
   attendance    Attendance[]
   leaveRequests LeaveRequest[]
+  allocations   LeaveAllocation[] @relation("UserAllocations")
+  createdAllocs LeaveAllocation[] @relation("AllocationCreator")
   payslips      Payslip[]
   skills        Skill[]
   certifications Certification[]
@@ -177,6 +180,26 @@ model LeaveRequest {
 
   @@index([companyId, userId])
   @@map("leave_requests")
+}
+
+model LeaveAllocation {
+  id          Int       @id @default(autoincrement())
+  companyId   Int       @map("company_id")
+  userId      Int       @map("user_id")
+  leaveType   String    @map("leave_type") @db.VarChar(50)
+  startDate   DateTime  @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date")   @db.Date        // null = no expiry
+  days        Int                                          // allocated days
+  note        String?
+  createdBy   Int       @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserAllocations",    fields: [userId],    references: [id])
+  creator User    @relation("AllocationCreator",  fields: [createdBy], references: [id])
+
+  @@index([companyId, userId])
+  @@map("leave_allocations")
 }
 
 model Payslip {

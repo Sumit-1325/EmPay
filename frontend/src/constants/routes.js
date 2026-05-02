@@ -9,6 +9,7 @@ export const ROUTES = {
   EMPLOYEE_DETAIL:  "/employees/:id",
   ATTENDANCE:       "/attendance",
   TIME_OFF:         "/time-off",
+  ALLOCATION:       "/leave-allocation",
   PAYROLL:          "/payroll",
   REPORTS:          "/reports",
   SETTINGS:         "/settings",

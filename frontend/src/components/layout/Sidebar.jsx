@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  Users, CalendarCheck, CalendarOff,
+  Users, CalendarCheck, CalendarOff, ClipboardList,
   Banknote, BarChart2, Settings, ChevronLeft, ChevronRight, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ import { ROUTE_ACCESS } from "@/constants/roles";
 const NAV_ITEMS = [
   { to: ROUTES.EMPLOYEES,  icon: Users,         label: "Employees",  access: ROUTE_ACCESS.EMPLOYEES  },
   { to: ROUTES.ATTENDANCE, icon: CalendarCheck, label: "Attendance", access: ROUTE_ACCESS.ATTENDANCE },
-  { to: ROUTES.TIME_OFF,   icon: CalendarOff,   label: "Time Off",   access: ROUTE_ACCESS.TIME_OFF   },
+  { to: ROUTES.TIME_OFF,   icon: CalendarOff,    label: "Time Off",   access: ROUTE_ACCESS.TIME_OFF   },
+  { to: ROUTES.ALLOCATION, icon: ClipboardList,  label: "Allocation", access: ROUTE_ACCESS.ALLOCATION  },
   { to: ROUTES.PAYROLL,    icon: Banknote,      label: "Payroll",    access: ROUTE_ACCESS.PAYROLL    },
   { to: ROUTES.REPORTS,    icon: BarChart2,     label: "Reports",    access: ROUTE_ACCESS.REPORTS    },
 ];
