@@ -515,18 +515,37 @@ export default function TimeOff() {
               No leave allocations assigned yet. Contact HR to set up your leave balance.
             </div>
           ) : (
-            Object.entries(balance).map(([type, { total, remaining, used }]) => (
-              <div key={type} className="rounded-xl border border-border bg-card px-5 py-4">
-                <p className="text-sm font-semibold text-primary">{type}</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {String(remaining).padStart(2, "0")}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">Days Available</span>
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  {used} used · {total} allocated
-                </p>
-              </div>
-            ))
+            Object.entries(balance).map(([type, { total, remaining, used }]) => {
+              const overLimit = used > total;
+              const overBy    = used - total;
+              return (
+                <div
+                  key={type}
+                  className={cn(
+                    "rounded-xl border px-5 py-4 transition-colors",
+                    overLimit
+                      ? "border-amber-500/40 bg-amber-500/5"
+                      : "border-border bg-card"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={cn("text-sm font-semibold", overLimit ? "text-amber-500" : "text-primary")}>{type}</p>
+                    {overLimit && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap">
+                        {overBy} day{overBy !== 1 ? "s" : ""} over limit
+                      </span>
+                    )}
+                  </div>
+                  <p className={cn("text-2xl font-bold mt-1", overLimit ? "text-amber-500" : "text-foreground")}>
+                    {String(remaining).padStart(2, "0")}
+                    <span className="text-sm font-normal text-muted-foreground ml-1">Days Available</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {used} used · {total} allocated
+                  </p>
+                </div>
+              );
+            })
           )}
         </div>
       )}

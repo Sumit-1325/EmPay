@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, X, ClipboardList, User, CalendarDays, Hash, StickyNote, Infinity } from "lucide-react";
+import { Plus, X, ClipboardList, Trash2, Infinity } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useFetch } from "@/hooks/useFetch";
 import { useToast } from "@/context/ToastContext";
@@ -267,9 +267,17 @@ function EmptyState({ onNew }) {
 
 // ─── Allocation Row ───────────────────────────────────────────────────────────
 
-function AllocationRow({ alloc }) {
+function AllocationRow({ alloc, onDelete }) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    await onDelete(alloc.id);
+    setDeleting(false);
+  }
+
   return (
-    <div className="grid grid-cols-[1.5fr_130px_110px_110px_80px_1fr] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors px-4 py-3">
+    <div className="grid grid-cols-[1.5fr_130px_110px_110px_80px_1fr_48px] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors px-4 py-3">
       <div className="flex items-center gap-2.5">
         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0">
           {empName(alloc.user).slice(0, 2).toUpperCase()}
@@ -287,7 +295,19 @@ function AllocationRow({ alloc }) {
       <div className="text-sm text-muted-foreground">{fmtDate(alloc.startDate)}</div>
       <div className="text-sm text-muted-foreground">{fmtDate(alloc.endDate)}</div>
       <div className="text-sm font-semibold text-foreground">{alloc.days} <span className="text-xs font-normal text-muted-foreground">days</span></div>
-      <div className="text-xs text-muted-foreground truncate pr-4">{alloc.note || "—"}</div>
+      <div className="text-xs text-muted-foreground truncate pr-2">{alloc.note || "—"}</div>
+      <div className="flex items-center justify-center">
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          aria-label="Delete allocation"
+          className="h-7 w-7 rounded-md bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
+        >
+          {deleting
+            ? <span className="h-3 w-3 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+            : <Trash2 size={13} />}
+        </button>
+      </div>
     </div>
   );
 }
@@ -302,6 +322,16 @@ export default function LeaveAllocation() {
 
   const { data: empData }   = useFetch(() => api.get("/employees"), []);
   const { data: allocData, loading, refetch } = useFetch(() => api.get("/leave/allocations"), []);
+
+  async function handleDelete(id) {
+    try {
+      await api.delete(`/leave/allocations/${id}`);
+      toast({ title: "Allocation deleted", variant: "success" });
+      refetch();
+    } catch (err) {
+      toast({ title: err.message || "Failed to delete allocation", variant: "error" });
+    }
+  }
 
   const employees   = empData?.employees  ?? [];
   const allocations = allocData?.allocations ?? [];
@@ -350,8 +380,8 @@ export default function LeaveAllocation() {
       {/* Table */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[1.5fr_130px_110px_110px_80px_1fr] border-b border-border bg-muted/40 px-4 py-2.5">
-          {["Employee", "Leave Type", "From", "To", "Days", "Note"].map((h) => (
+        <div className="grid grid-cols-[1.5fr_130px_110px_110px_80px_1fr_48px] border-b border-border bg-muted/40 px-4 py-2.5">
+          {["Employee", "Leave Type", "From", "To", "Days", "Note", ""].map((h) => (
             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
           ))}
         </div>
@@ -363,7 +393,7 @@ export default function LeaveAllocation() {
         ) : filtered.length === 0 ? (
           <EmptyState onNew={() => setShowModal(true)} />
         ) : (
-          filtered.map((alloc) => <AllocationRow key={alloc.id} alloc={alloc} />)
+          filtered.map((alloc) => <AllocationRow key={alloc.id} alloc={alloc} onDelete={handleDelete} />)
         )}
       </div>
 
