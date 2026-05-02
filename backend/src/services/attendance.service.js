@@ -89,7 +89,7 @@ export const getAttendanceSummary = async ({ companyId, userId, month, year }) =
 
 export const checkIn = async ({ companyId, userId }) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
 
   const existing = await prisma.attendance.findUnique({
     where: { userId_date: { userId, date: today } },
@@ -117,7 +117,7 @@ export const checkIn = async ({ companyId, userId }) => {
 
 export const checkOut = async ({ companyId, userId }) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
 
   const record = await prisma.attendance.findUnique({
     where: { userId_date: { userId, date: today } },
