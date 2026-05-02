@@ -48,6 +48,13 @@ function RequireGuest() {
   return isAuthenticated ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Outlet />;
 }
 
+// ── Role-aware default redirect ───────────────────────────────
+function RoleRedirect() {
+  const { user } = useAuth();
+  const to = user?.role === "EMPLOYEE" ? ROUTES.ATTENDANCE : ROUTES.EMPLOYEES;
+  return <Navigate to={to} replace />;
+}
+
 function AppRoutes() {
   const { isBootstrapping } = useAuth();
 
@@ -70,7 +77,7 @@ function AppRoutes() {
         {/* ── Protected (HRMS pages) ─── */}
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
-            <Route path={ROUTES.DASHBOARD}       element={<Navigate to={ROUTES.EMPLOYEES} replace />} />
+            <Route path={ROUTES.DASHBOARD} element={<RoleRedirect />} />
             <Route path={ROUTES.EMPLOYEES}       element={<Employees />} />
             <Route path={ROUTES.EMPLOYEE_DETAIL} element={<EmployeeDetail />} />
             <Route path={ROUTES.ATTENDANCE} element={<Attendance />} />
