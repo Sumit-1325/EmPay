@@ -16,6 +16,7 @@ const RegisterPage       = lazy(() => import("@/pages/RegisterPage"));
 const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage"));
 const Dashboard          = lazy(() => import("@/pages/Dashboard"));
 const Employees          = lazy(() => import("@/pages/Employees"));
+const EmployeeDetail     = lazy(() => import("@/pages/EmployeeDetail"));
 const Attendance         = lazy(() => import("@/pages/Attendance"));
 const TimeOff            = lazy(() => import("@/pages/TimeOff"));
 const Payroll            = lazy(() => import("@/pages/Payroll"));
@@ -67,8 +68,9 @@ function AppRoutes() {
         {/* ── Protected (HRMS pages) ─── */}
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
-            <Route path={ROUTES.DASHBOARD}  element={<Dashboard />} />
-            <Route path={ROUTES.EMPLOYEES}  element={<Employees />} />
+            <Route path={ROUTES.DASHBOARD}       element={<Navigate to={ROUTES.EMPLOYEES} replace />} />
+            <Route path={ROUTES.EMPLOYEES}       element={<Employees />} />
+            <Route path={ROUTES.EMPLOYEE_DETAIL} element={<EmployeeDetail />} />
             <Route path={ROUTES.ATTENDANCE} element={<Attendance />} />
             <Route path={ROUTES.TIME_OFF}   element={<TimeOff />} />
             <Route path={ROUTES.PAYROLL}    element={<Payroll />} />

@@ -6,6 +6,7 @@ export const ROUTES = {
   RESET_PASSWORD:   "/reset-password",
   DASHBOARD:        "/",
   EMPLOYEES:        "/employees",
+  EMPLOYEE_DETAIL:  "/employees/:id",
   ATTENDANCE:       "/attendance",
   TIME_OFF:         "/time-off",
   PAYROLL:          "/payroll",

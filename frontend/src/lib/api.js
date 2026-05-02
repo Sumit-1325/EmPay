@@ -41,7 +41,7 @@ async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
 
-  const skipRefresh = ["/auth/login", "/auth/register", "/auth/refresh-token", "/auth/me"];
+  const skipRefresh = ["/auth/login", "/auth/register", "/auth/refresh-token"];
   if (res.status === 401 && !skipRefresh.includes(path)) {
     if (isRefreshing) {
       const newToken = await new Promise((resolve, reject) => {
