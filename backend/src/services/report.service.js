@@ -15,7 +15,7 @@ function inr(n) {
 function fmtDate(d) {
   if (!d) return "—";
   const dt = new Date(d);
-  return `${String(dt.getUTCDate()).padStart(2,"0")}/${String(dt.getUTCMonth()+1).padStart(2,"0")}/${dt.getUTCFullYear()}`;
+  return `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}/${dt.getFullYear()}`;
 }
 
 // Build a 12-value array + total from payslip map
@@ -72,35 +72,36 @@ export const generateSalaryStatementReport = async (companyId, employeeId, year)
   const slipMap = {};
   for (const s of payslips) slipMap[s.month] = s;
 
-  // 3. Effective-from date: first payslip month in DB or joiningDate
-  let effectiveFrom = employee.joiningDate;
-  const firstPayslip = await prisma.payslip.findFirst({
-    where: { userId: parseInt(employeeId), companyId },
-    orderBy: [{ year: "asc" }, { month: "asc" }],
-  });
-  if (firstPayslip) {
-    effectiveFrom = new Date(firstPayslip.year, firstPayslip.month - 1, 1);
-  }
+  // 3. Effective-from date: always use joiningDate (first day of joining month)
+  const effectiveFrom = employee.joiningDate
+    ? new Date(new Date(employee.joiningDate).getFullYear(), new Date(employee.joiningDate).getMonth(), 1)
+    : null;
 
   // 4. Build component rows (14 columns: label + 12 months + total)
   const colspan = 14;
 
   const earnRows = [
-    ["Basic Salary",          monthRow(slipMap, "basicSalary")],
-    ["House Rent Allowance",  monthRow(slipMap, "hra")],
-    ["Standard Allowance",    monthRow(slipMap, "standardAllowance")],
-    ["Performance Bonus",     monthRow(slipMap, "performanceBonus")],
-    ["LTA",                   monthRow(slipMap, "lta")],
-    ["Fixed Allowance",       monthRow(slipMap, "fixedAllowance")],
-    ["Gross Pay",             monthRow(slipMap, "grossPay")],
+    ["Basic Salary",         monthRow(slipMap, "basicSalary")],
+    ["House Rent Allowance", monthRow(slipMap, "hra")],
+    ["Standard Allowance",   monthRow(slipMap, "standardAllowance")],
+    ["Performance Bonus",    monthRow(slipMap, "performanceBonus")],
+    ["LTA",                  monthRow(slipMap, "lta")],
+    ["Fixed Allowance",      monthRow(slipMap, "fixedAllowance")],
+    ["Gross Pay",            monthRow(slipMap, "grossPay")],
   ];
 
+  const tdsRow = monthRow(slipMap, "tds");
+  const hideTds = tdsRow.total === 0;
+
   const dedRows = [
-    ["PF (Employee)",         monthRow(slipMap, "pfEmployee")],
-    ["PF (Employer)",         monthRow(slipMap, "pfEmployer")],
-    ["Professional Tax",      monthRow(slipMap, "professionalTax")],
-    ["TDS",                   monthRow(slipMap, "tds")],
-    ["Total Deductions",      monthRow(slipMap, "totalDeductions")],
+    ["PF (Employee)",    monthRow(slipMap, "pfEmployee")],
+    ["Professional Tax", monthRow(slipMap, "professionalTax")],
+    ...(!hideTds ? [["TDS", tdsRow]] : []),
+    ["Total Deductions", monthRow(slipMap, "totalDeductions")],
+  ];
+
+  const erRows = [
+    ["PF (Employer)", monthRow(slipMap, "pfEmployer")],
   ];
 
   const netRow = monthRow(slipMap, "netPay");
@@ -272,10 +273,12 @@ export const generateSalaryStatementReport = async (companyId, employeeId, year)
       <tbody>
         ${sectionHeader("Earnings", colspan)}
         ${earnRows.map(([label, row], i) => renderRow(label, row, i === earnRows.length - 1)).join("")}
-        ${sectionHeader("Deductions", colspan)}
+        ${sectionHeader("Deductions (Employee)", colspan)}
         ${dedRows.map(([label, row], i) => renderRow(label, row, i === dedRows.length - 1)).join("")}
         ${sectionHeader("Net Pay", colspan)}
         ${renderRow("Net Pay", netRow, true)}
+        ${sectionHeader("Employer Contributions", colspan)}
+        ${erRows.map(([label, row], i) => renderRow(label, row, i === erRows.length - 1)).join("")}
       </tbody>
     </table>
   </div>
