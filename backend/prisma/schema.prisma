@@ -37,8 +37,10 @@ model Company {
   name          String   @db.VarChar(255)
   code          String   @unique @db.VarChar(10)
   logoUrl       String?  @map("logo_url")
-  standardHours Int      @default(8) @map("standard_hours") // used to compute extra hours
-  createdAt     DateTime @default(now()) @map("created_at")
+  standardHours  Float    @default(8)       @map("standard_hours")   // auto-computed from workStartTime/workEndTime
+  workStartTime  String   @default("09:00") @map("work_start_time") @db.VarChar(5)
+  workEndTime    String   @default("17:00") @map("work_end_time")   @db.VarChar(5)
+  createdAt      DateTime @default(now())   @map("created_at")
 
   users         User[]
   attendance    Attendance[]

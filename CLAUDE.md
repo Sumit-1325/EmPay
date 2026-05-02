@@ -31,7 +31,7 @@ HR / Employee  →  POST /api/employees      →  system temp password →  must
                                                                        must change on first login
 ```
 
-**Normal users CANNOT self-register.** Only Admin/HR Officers can create employees via the employees API. The system auto-generates a `loginId` and a one-time temp password returned in the creation response.
+**Normal users CANNOT self-register.** Only Admin/HR Officers can create employees via the employees API. The system auto-generates a `loginId` and a one-time temp password returned in the creation response. A welcome email is sent to the employee's email with their loginId and temp password.
 
 ## Key Facts
 
@@ -42,6 +42,8 @@ HR / Employee  →  POST /api/employees      →  system temp password →  must
 - **Multi-tenancy:** every DB table scoped by `companyId`. Company A cannot read Company B's data.
 - **DB GUI:** pgAdmin at `http://localhost:5050` (admin@admin.com / admin). Connect to host `postgres` port `5432`.
 - **API base URL:** `http://localhost:8000/api`
+- **Email:** Brevo API. All email sends are fire-and-forget (`.catch(() => {})`). Welcome email on employee creation; confirmation email after password change.
+- **Avatar uploads:** Cloudinary. Use `multipart/form-data` — never set `Content-Type` manually (browser sets it with boundary).
 
 ## LoginId Format
 
@@ -60,6 +62,24 @@ Example: OISUTH20260001
 | EMPLOYEE | Admin or HR | Own attendance/leave/payslips |
 | SUPER_ADMIN | Platform only | Cross-company (not yet wired) |
 
+## Salary Formula (computed from monthlyWage)
+
+```
+wage        = monthlyWage
+basic       = wage × 0.50
+hra         = basic × 0.50
+sa          = ₹4,167 (fixed Standard Allowance)
+pb          = basic × 0.0833   (Performance Bonus)
+lta         = basic × 0.0833   (Leave Travel Allowance)
+fixed       = wage − (basic + hra + sa + pb + lta)
+pfEmployee  = basic × pfRate/100  (default 12%)
+pfEmployer  = basic × pfRate/100  (same as employee)
+profTax     = ₹200 (flat)
+basicSalary = monthlyWage × 0.50  (stored in DB, auto-computed on create/update)
+```
+
+Only `monthlyWage` is entered by the admin. `basicSalary` is always `monthlyWage * 0.5` and is auto-synced in the service layer. Salary Info tab is visible to ADMIN and PAYROLL_OFFICER only.
+
 ## API Routes Summary
 
 ```
@@ -72,22 +92,26 @@ POST   /api/auth/refresh-token
 POST   /api/auth/forgot-password
 POST   /api/auth/reset-password
 
-GET/POST        /api/employees
-GET/PUT/DELETE  /api/employees/:id
+GET/POST              /api/employees
+GET/PUT/DELETE        /api/employees/:id
+PATCH                 /api/employees/:id/avatar       ← multipart/form-data
+POST/DELETE           /api/employees/:id/skills/:skillId?
+POST/DELETE           /api/employees/:id/certifications/:certId?
 
-GET             /api/attendance
-POST            /api/attendance/check-in
-POST            /api/attendance/check-out
-PUT             /api/attendance/:id
+GET                   /api/attendance
+POST                  /api/attendance/check-in
+POST                  /api/attendance/check-out
+PUT                   /api/attendance/:id
 
-GET/POST        /api/leave
-PUT             /api/leave/:id/approve
-PUT             /api/leave/:id/reject
-DELETE          /api/leave/:id
+GET/POST              /api/leave
+PUT                   /api/leave/:id/approve
+PUT                   /api/leave/:id/reject
+DELETE                /api/leave/:id
 
-GET/POST        /api/payroll
-GET             /api/payroll/:id
-PATCH           /api/payroll/:id/pay
+GET                   /api/payroll/dashboard    ← ADMIN, PAYROLL_OFFICER, HR_OFFICER
+GET/POST              /api/payroll
+GET                   /api/payroll/:id
+PATCH                 /api/payroll/:id/pay
 ```
 
 ## Environment Files

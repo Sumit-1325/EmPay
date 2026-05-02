@@ -9,6 +9,7 @@ import employeeRouter   from "./routes/employee.route.js";
 import attendanceRouter from "./routes/attendance.route.js";
 import leaveRouter      from "./routes/leave.route.js";
 import payrollRouter    from "./routes/payroll.route.js";
+import companyRouter    from "./routes/company.route.js";
 
 const app          = express();
 const PORT         = parseInt(process.env.PORT) || 5000;
@@ -48,6 +49,7 @@ app.use("/api/employees",  employeeRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/leave",      leaveRouter);
 app.use("/api/payroll",    payrollRouter);
+app.use("/api/company",   companyRouter);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found", path: req.path }));
