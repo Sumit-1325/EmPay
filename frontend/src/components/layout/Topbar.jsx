@@ -11,13 +11,36 @@ import { api } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+function parseHHMM(str) {
+  const [h = 0, m = 0] = (str || "00:00").split(":").map(Number);
+  return h * 60 + m;
+}
+function getNowMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+function fmt12(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
 // ── Check In / Out button + status dot ───────────────────────────────────────
 function CheckInOut() {
-  const { user }                    = useAuth();
-  const { toast }                   = useToast();
-  const [record, setRecord]         = useState(null);
-  const [loading, setLoading]       = useState(false);
-  const [fetched, setFetched]       = useState(false);
+  const { user }              = useAuth();
+  const { toast }             = useToast();
+  const [record, setRecord]   = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+  const [nowMin, setNowMin]   = useState(getNowMinutes());
+
+  // Refresh current-minute every 60 s so the button auto-enables at start time
+  useEffect(() => {
+    const id = setInterval(() => setNowMin(getNowMinutes()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -26,7 +49,6 @@ function CheckInOut() {
     api.get(`/attendance?date=${today}`)
       .then((res) => {
         const records = res.data?.attendance ?? [];
-        // find current user's own record regardless of role
         const own = records.find((r) => (r.user?.id ?? r.userId) === user.id) ?? null;
         setRecord(own);
       })
@@ -37,7 +59,22 @@ function CheckInOut() {
   const isCheckedIn  = !!record?.checkIn;
   const isCheckedOut = !!record?.checkOut;
 
+  // ── Work-hours gate ──────────────────────────────────────────────────────
+  const workStart   = user?.company?.workStartTime ?? "09:00";
+  const workEnd     = user?.company?.workEndTime   ?? "17:00";
+  const startMin    = parseHHMM(workStart);
+  const endMin      = parseHHMM(workEnd);
+  const withinHours = nowMin >= startMin && nowMin <= endMin;
+
   async function handleCheckIn() {
+    if (!withinHours) {
+      toast({
+        title: "Outside work hours",
+        description: `Check-in is only allowed between ${fmt12(workStart)} and ${fmt12(workEnd)}.`,
+        variant: "error",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.post("/attendance/check-in", {});
@@ -81,7 +118,7 @@ function CheckInOut() {
     );
   }
 
-  // Checked in — show "Since HH:MM" + Check Out button
+  // Checked in — show "Since HH:MM" + Check Out button (always allowed)
   if (isCheckedIn) {
     return (
       <div className="hidden sm:flex items-center gap-2">
@@ -101,17 +138,25 @@ function CheckInOut() {
     );
   }
 
-  // Not checked in — show Check In button
+  // Not checked in — show Check In button, disabled outside work hours
   return (
-    <button
-      onClick={handleCheckIn}
-      disabled={loading}
-      aria-label="Check in"
-      className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-60"
-    >
-      <span className="h-2 w-2 rounded-full bg-rose-400" />
-      Check In
-    </button>
+    <div className="hidden sm:flex items-center gap-2">
+      <button
+        onClick={handleCheckIn}
+        disabled={loading || !withinHours}
+        aria-label="Check in"
+        title={!withinHours ? `Check-in allowed ${fmt12(workStart)} – ${fmt12(workEnd)}` : "Check in"}
+        className={cn(
+          "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+          withinHours
+            ? "border-border bg-muted/40 text-foreground hover:bg-muted disabled:opacity-60"
+            : "border-border bg-muted/20 text-muted-foreground cursor-not-allowed opacity-60"
+        )}
+      >
+        <span className={cn("h-2 w-2 rounded-full", withinHours ? "bg-rose-400" : "bg-muted-foreground/40")} />
+        {withinHours ? "Check In" : `Opens ${fmt12(workStart)}`}
+      </button>
+    </div>
   );
 }
 
