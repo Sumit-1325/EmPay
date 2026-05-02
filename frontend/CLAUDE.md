@@ -1,6 +1,6 @@
 # Frontend — EmPay HRMS
 
-**Stack:** React 19 · Vite 8 · Tailwind v4 (CSS-first, no tailwind.config.js) · shadcn/ui (radix-ui unified package) · React Router v6 · Recharts · @dnd-kit
+**Stack:** React 19 · Vite 8 · Tailwind v4 (CSS-first, no tailwind.config.js) · shadcn/ui · React Router v6 · Recharts
 
 ## Commands
 
@@ -22,28 +22,30 @@ main.jsx
        ├─ BrowserRouter
        ├─ ThemeProvider   (context/ThemeContext.jsx)
        ├─ AuthProvider    (context/AuthContext.jsx)
-       ├─ ToastProvider   (context/ToastContext.jsx)  ← global toast notifications
+       ├─ ToastProvider   (context/ToastContext.jsx)
        ├─ LayoutProvider  (context/LayoutContext.jsx)
-       ├─ ErrorBoundary   (components/common/ErrorBoundary.jsx)  ← crash fallback
+       ├─ ErrorBoundary   (components/common/ErrorBoundary.jsx)
        └─ Routes (Suspense + lazy)
-            ├─ RequireGuest → /login, /register   (redirect to / if already logged in)
-            ├─ RequirePasswordChange → /change-password  (blocks all other routes when mustChangePassword = true)
-            └─ RequireAuth → AppShell → all HRMS pages (redirect to /login if not logged in)
+            ├─ RequireGuest          → /login, /register
+            ├─ RequirePasswordChange → /change-password
+            └─ RequireAuth           → AppShell → all HRMS pages
 ```
+
+`/` (DASHBOARD) uses `RoleRedirect`: EMPLOYEE → `/attendance`, all others → `/employees`
 
 ## Component Layer Rules
 
 | Folder | What lives here | Rule |
 |--------|----------------|------|
 | `components/ui/` | shadcn/ui primitives | **Never edit** |
-| `components/common/` | Avatar, Badge, StatCard, PageHeader, EmptyState, LoadingSpinner, Tooltip, Dialog, Dropdown, Tabs, DataTable, **ErrorBoundary** | Shared across 2+ pages |
+| `components/common/` | Avatar, StatCard, PageHeader, LoadingSpinner, ErrorBoundary, Tabs | Shared across 2+ pages |
 | `components/layout/` | AppShell, Sidebar, Topbar, MobileNav | One instance per app |
 | `components/auth/` | AuthShell, AuthField | Auth pages only |
-| `pages/` | Route-level components (`export default`) | No business logic |
-| `hooks/` | useTheme, useSidebar, useLocalStorage, useDebounce, usePagination, useFetch | Pure logic, no JSX |
-| `context/` | AuthContext, ThemeContext, LayoutContext, **ToastContext** | React Context providers |
+| `pages/` | Route-level components (`export default`) | No business logic in controllers |
+| `hooks/` | useFetch, useLocalStorage, useTheme, useSidebar | Pure logic, no JSX |
+| `context/` | AuthContext, ThemeContext, LayoutContext, ToastContext | React Context providers |
 | `lib/` | api.js, formatters.js, validators.js, utils.js | Pure functions |
-| `constants/` | routes.js, roles.js, dealStages.js | Static data, no functions |
+| `constants/` | routes.js, roles.js, authFeatures.js | Static data only |
 
 ## State Management
 
@@ -53,13 +55,13 @@ const { user, isAuthenticated, isBootstrapping, login, logout, updateUser } = us
 // login(userData, accessToken, refreshToken) → stores in localStorage
 // logout() → clears localStorage
 // isBootstrapping: true while GET /auth/me is in-flight on app load
-// Also listens for window "auth:logout" event — fired by api.js on token refresh failure
+// Listens for "auth:logout" event — fired by api.js on token refresh failure
 ```
 
 **Theme** — `context/ThemeContext.jsx`
 ```js
 const { theme, toggleTheme } = useTheme(); // "light" | "dark"
-// Applies .dark or .light class to <html>. Persists to localStorage key "crm-theme"
+// Applies .dark/.light class to <html>. Persists to localStorage "crm-theme"
 ```
 
 **Layout** — `context/LayoutContext.jsx`
@@ -68,98 +70,279 @@ const { isOpen, toggle } = useSidebar();
 const { toggleMobileNav, closeMobileNav } = useContext(LayoutContext);
 ```
 
-**Toast notifications** — `context/ToastContext.jsx`
+**Toast** — `context/ToastContext.jsx`
 ```js
 const { toast } = useToast();
-toast({ title: "Saved!", description: "Employee updated.", variant: "success" });
+toast({ title: "Saved!", description: "...", variant: "success" });
 // variants: "default" | "success" | "error" | "warning"
-// duration defaults to 4000ms; auto-dismisses via Radix Toast
 ```
 
 ## Routing — `constants/routes.js`
 
 ```js
-ROUTES.LOGIN             // /login
-ROUTES.REGISTER          // /register
-ROUTES.CHANGE_PASSWORD   // /change-password
-ROUTES.DASHBOARD         // /
-ROUTES.EMPLOYEES         // /employees
-ROUTES.EMPLOYEE_DETAIL   // /employees/:id
-ROUTES.ATTENDANCE        // /attendance
-ROUTES.TIME_OFF          // /time-off
-ROUTES.ALLOCATION        // /leave-allocation  ← Leave Allocation page (ADMIN + HR_OFFICER only)
-ROUTES.PAYROLL           // /payroll
-ROUTES.REPORTS           // /reports
-ROUTES.SETTINGS          // /settings
+ROUTES.LOGIN            // /login
+ROUTES.REGISTER         // /register
+ROUTES.CHANGE_PASSWORD  // /change-password
+ROUTES.DASHBOARD        // /  ← RoleRedirect, not a real page
+ROUTES.EMPLOYEES        // /employees
+ROUTES.EMPLOYEE_DETAIL  // /employees/:id
+ROUTES.ATTENDANCE       // /attendance
+ROUTES.TIME_OFF         // /time-off
+ROUTES.ALLOCATION       // /leave-allocation
+ROUTES.PAYROLL          // /payroll
+ROUTES.PAYROLL_DETAIL   // /payroll/payslip/:id
+ROUTES.REPORTS          // /reports
+ROUTES.SETTINGS         // /settings
 ```
 
 To add a new page:
 1. Add path to `constants/routes.js`
 2. Create `pages/PageName.jsx` with `export default`
-3. Add `<Route>` inside `RequireAuth` block in `App.jsx`
+3. Add lazy import + `<Route>` in `App.jsx`
 4. Add nav entry to `Sidebar.jsx` and `MobileNav.jsx` `NAV_ITEMS` arrays
 
 ## Role-Based Access — `constants/roles.js`
 
 ```js
 USER_ROLES      // { ADMIN, HR_OFFICER, PAYROLL_OFFICER, EMPLOYEE, SUPER_ADMIN }
-MANAGER_ROLES   // [ADMIN, HR_OFFICER] — can edit employees
-PAYROLL_ROLES   // [ADMIN, PAYROLL_OFFICER] — can view Salary Info tab and Payroll page
+MANAGER_ROLES   // [ADMIN, HR_OFFICER]      — create/edit employees, approve leave
+PAYROLL_ROLES   // [ADMIN, PAYROLL_OFFICER] — Payroll page, Salary Info tab, Reports
 ROUTE_ACCESS    // map of route key → allowed roles array
 ```
 
-**Sidebar gating:** Each `NAV_ITEM` has an `access` array. If the logged-in user's role is not in `access`, the nav item renders as a disabled `<div>` with a Lock icon (40% opacity) instead of a `<NavLink>`. This prevents unauthorized access without showing a 403 error page.
-
-**Settings link:** Only rendered for `ADMIN` — completely hidden from sidebar and MobileNav for all other roles (not just locked).
-
-**Allocation link:** Uses `ROUTE_ACCESS.ALLOCATION = [ADMIN, HR_OFFICER]`. Employees and Payroll Officers see a locked icon.
-
-**Employee profile tabs:**
-- Resume tab: editable by MANAGER_ROLES (read-only for EMPLOYEE)
-- Private Info tab: visible to MANAGER_ROLES
-- Salary Info tab: visible to PAYROLL_ROLES only (`canViewSalary`)
-- Security tab: visible to MANAGER_ROLES
+Sidebar gating: nav items have an `access` array. Unauthorized roles see a locked `<div>` with a Lock icon (40% opacity) instead of a `<NavLink>`. Settings link is completely hidden from non-ADMIN.
 
 ## API Client — `lib/api.js`
 
 ```js
 import { api } from "@/lib/api";
-
 api.get("/employees")
 api.post("/employees", { firstName, lastName, email, role, monthlyWage })
 api.put("/employees/123", data)
-api.patch("/employees/123/avatar", formData)   // pass FormData directly — no Content-Type header
+api.patch("/employees/123/avatar", formData)  // FormData → no Content-Type header
 api.delete("/employees/123")
 ```
 
-Automatically injects `Authorization: Bearer <token>` from localStorage. Throws errors with `{ message, status, errors }` shape. Base URL from `VITE_API_URL` env (default `http://localhost:8000/api`).
+- Auto-injects `Authorization: Bearer <token>` from localStorage
+- Throws `{ message, status, errors }` on error
+- Auto token refresh on 401 — retries original request; dispatches `auth:logout` if refresh fails
+- `skipRefresh` list: `/auth/login`, `/auth/register`, `/auth/refresh-token`
+- Base URL from `VITE_API_URL` env (default `http://localhost:8000/api`)
 
-**FormData detection:** If `body instanceof FormData`, the client skips `JSON.stringify` and does NOT set `Content-Type` (browser adds it with the correct multipart boundary automatically).
-
-**Auto token refresh:** On any 401 response the client automatically calls `POST /auth/refresh-token`, updates localStorage, and retries the original request. Concurrent 401s are queued and replayed after refresh. If refresh fails, dispatches `auth:logout` event → `AuthContext` clears session and redirects to `/login`.
-
-**skipRefresh list:** Only routes that should NOT trigger a refresh attempt (to prevent loops): `/auth/login`, `/auth/register`, `/auth/refresh-token`. `/auth/me` is NOT in this list — it should trigger a refresh if the access token has expired.
+**FormData:** If `body instanceof FormData`, skips `JSON.stringify` — browser sets `multipart/form-data` boundary automatically.
 
 ## Data Fetching Hook — `hooks/useFetch.js`
 
 ```js
-// Takes a function, not a path string
 const { data, loading, error, refetch } = useFetch(() => api.get("/employees"), []);
 ```
 
-Always pass a function and a deps array (like `useEffect`). The hook calls the function on mount and whenever deps change.
+Always pass a function + deps array (like `useEffect`). Reruns when deps change.
 
 ## Design System — CSS Variables
 
-Light/dark tokens live in `src/index.css`. Both modes defined:
-- `:root` = light mode
-- `.dark` = dark mode (applied to `<html>` by ThemeProvider)
+Light/dark tokens in `src/index.css`. Applied via `@theme inline`.
 
-Key variables: `--primary` (#6366f1 indigo), `--secondary` (#a855f7 purple), `--accent` (#14b8a6 teal), `--background`, `--foreground`, `--card`, `--muted`, `--border`, `--destructive`.
+| Variable | Usage |
+|----------|-------|
+| `--primary` | #6366f1 indigo — buttons, active states |
+| `--secondary` | #a855f7 purple — gradient partner |
+| `--accent` | #14b8a6 teal — chart bars, highlights |
+| `--background` | Page background |
+| `--card` | Card/panel background |
+| `--border` | #cbd5e1 light / #2d2d3d dark |
+| `--foreground` | Body text |
+| `--muted-foreground` | Labels, secondary text |
+| `--destructive` | Red — errors, delete |
 
-In Tailwind classes, these map as `bg-primary`, `text-foreground`, `border-border`, etc. (via `@theme inline` in `index.css`).
+**Never hardcode hex values in JSX.** Use Tailwind CSS variable classes: `bg-primary`, `text-foreground`, `border-border`.
 
-**Never hardcode hex values in JSX or className.** Use Tailwind CSS variable classes.
+**Modal pattern:** Always use `createPortal(..., document.body)` with `z-[9999]` to escape CSS animation stacking contexts. Gradient header: `bg-gradient-to-r from-primary to-secondary`.
+
+---
+
+## Pages
+
+### `pages/LoginPage.jsx`
+Auth page. Fields: `loginIdOrEmail` + `password`. Calls `POST /auth/login`. On success calls `login(user, accessToken, refreshToken)` → navigates to dashboard. Shows server errors inline.
+
+### `pages/RegisterPage.jsx`
+Company onboarding — creates company + first ADMIN user. Fields: `companyName`, `companyCode`, `firstName`, `lastName`, `email`, `password`. Calls `POST /auth/register`. On success shows toast with auto-generated `loginId`, navigates to dashboard.
+
+### `pages/ChangePasswordPage.jsx`
+Force-change wall shown when `mustChangePassword = true`. Fields: `oldPassword`, `newPassword` (with live strength hints), `confirmPassword`. Calls `PUT /auth/change-password`. On success calls `login()` with new tokens (rotated by backend) → navigates to dashboard.
+
+### `pages/Employees.jsx`
+Employee list page (ADMIN, HR_OFFICER, PAYROLL_OFFICER). Key elements:
+- Search bar (client-side filter on name/loginId/email/role)
+- Role filter dropdown
+- `CreateEmployeeModal` — gradient header, portal, fields: firstName, lastName, email, role, monthlyWage, joiningDate. On success shows `TempPasswordCard` (portal) with the one-time temp password + copy button
+- Employee table rows → click → navigate to `/employees/:id`
+- Delete button (ADMIN only) with inline confirmation
+
+### `pages/EmployeeDetail.jsx`
+Full tabbed employee profile (`max-w-4xl`). Key elements:
+- **ProfileHeader** — avatar (editable for ADMIN/HR via `PATCH /employees/:id/avatar`), name, loginId badge, role, email, mobile, location, manager, joining date
+- **Resume tab** — editable About / Job Passion / Interests (save on blur via `PUT /employees/:id`); Skills chips (add on Enter, delete via `DELETE /:id/skills/:skillId`); Certifications list with add form. Read-only for EMPLOYEE role.
+- **Private Info tab** — personal details + bank account fields (placeholder sections)
+- **Salary Info tab** — visible to PAYROLL_ROLES only. Editable `monthlyWage` (ADMIN only); auto-computed salary breakdown table (Basic, HRA, SA, PB, LTA, Fixed, PF, Prof Tax)
+- **Security tab** — own profile: Change Password form (old+new+confirm with strength hints, calls `PUT /auth/change-password`). Admin/HR on another employee: Reset Password button (calls `POST /employees/:id/reset-password`, emails new temp password)
+
+### `pages/Attendance.jsx`
+Check-in/out log. Key elements:
+- EMPLOYEE sees own records; ADMIN/HR see all with employee filter
+- Date range filter
+- Status badges: PRESENT / HALF_DAY / ABSENT / LEAVE
+- Duration computed from checkIn/checkOut
+- Admin can edit attendance records (`PUT /attendance/:id`)
+
+### `pages/TimeOff.jsx`
+Leave request management. Role-split views:
+- **Employee** — own requests + balance cards from `GET /leave/allocations/me`. Balance = allocated − approved used. Amber warning if over limit. "NEW" → `RequestModal`
+- **Admin/HR** — all company requests. "NEW" → `AdminRequestForm` (with employee dropdown). Approve/reject buttons (✓ / ✗) on pending rows
+- Both modals use `ModalShell` (portal, gradient header)
+- Sick Leave attachment: image upload via FormData → Cloudinary
+
+### `pages/LeaveAllocation.jsx`
+ADMIN + HR_OFFICER only. Create leave entitlements for employees:
+- Form: employee dropdown, leave type, validity period (start/end + "No limit" toggle), days (auto-capped to date range), note
+- Table of all company allocations with delete button
+- `DELETE /leave/allocations/:id`
+
+### `pages/Payroll.jsx`
+Payroll management page. Three tabs:
+- **Dashboard tab** — summary tiles (total employees, payslips run, annual cost, new joiners), warning cards (missing bank/manager), Employer Cost bar chart, New Joiners bar chart. "Run Payrun" button (PAYROLL_ROLES) → `RunPayrunModal` (portal, calls `POST /payroll/run`, shows results inline)
+- **Payrun tab** — two inner sub-tabs:
+  - *Payruns Summary* — list from `GET /payroll/payruns`: period, payslip count, total net, total employer cost, "View →" link (switches to By Employee with that month pre-filtered)
+  - *By Employee* — payslip list filtered by month/year; "Mark Paid" button; "View →" links to `/payroll/payslip/:id`
+- **Configuration tab** — company work hours (start/end time → auto-computes standard hours); saves via `PUT /company/settings`
+
+### `pages/PayslipDetail.jsx`
+Full payslip detail page at `/payroll/payslip/:id`. Key elements:
+- Header card: employee name + loginId badge, month/year, Paid/Pending badge
+- **Attendance Summary** — 5 stat tiles: Present, Half Day, Paid Leave, Unpaid Leave, Payable/Total
+- **Salary Computation table** — Earnings section (Basic→Gross), Deductions section (PF Employee, Prof Tax, TDS if non-zero, Total), Net Pay row (green + large)
+- **Employer Cost** sidebar card — Gross + PF Employer = Total Cost
+- **Actions** — "Print / Download PDF" (`window.open` with `?token=` query param), "Mark as Paid" (PAYROLL_ROLES only, hidden when already paid)
+
+### `pages/Reports.jsx`
+Salary Statement report generator (ADMIN + PAYROLL_OFFICER only). Key elements:
+- Employee dropdown + financial year select
+- Selected employee preview pill
+- "Generate & Print" — fetches `GET /reports/salary-statement?employeeId=X&year=Y` with Bearer auth header, creates a Blob URL, opens in new tab (avoids `window.open` auth header limitation)
+- Right panel: "What's included" list, role access table
+- Non-ADMIN/PAYROLL_OFFICER sees amber access-denied notice + disabled form
+
+### `pages/Settings.jsx`
+User settings page (ADMIN only in sidebar). Five tabs:
+- **Profile** — avatar upload (Cloudinary), firstName/lastName/email fields, save via `PUT /employees/:id`
+- **Preferences** — theme toggle (light/dark), notification preferences placeholder
+- **Security** — change password (inline form, same as ChangePasswordPage but within the app shell)
+- **Company** — company name, logo upload, work hours; saves via `PUT /company/settings`
+- **User Settings** — manage all employees' roles and settings (ADMIN only)
+
+---
+
+## Components
+
+### `components/common/PageHeader.jsx`
+Standard page title bar used by all HRMS pages.
+```jsx
+<PageHeader title="Payroll" breadcrumbs={[{ label: "Payroll" }, { label: "Detail" }]} />
+```
+Renders title + breadcrumb trail. No actions slot — page-level buttons go in the page itself.
+
+### `components/common/Avatar.jsx`
+Circular avatar with initials fallback.
+```jsx
+<Avatar src={user.avatarUrl} initials="RV" size="lg" />
+// sizes: sm | md | lg | xl
+```
+
+### `components/common/StatCard.jsx`
+KPI tile used in the Dashboard. Props: `label`, `value`, `trend` ("up"|"down"), `trendValue`, `icon`.
+
+### `components/common/Tabs.jsx`
+Horizontal tab strip used in Settings and EmployeeDetail.
+```jsx
+<Tabs tabs={[{ value, label, icon, labelClass, content }]} defaultValue="resume" />
+```
+Props: `tabs` array, `defaultValue`. Each tab's `content` is rendered below the strip. Supports `labelClass` for custom label styling.
+
+### `components/common/LoadingSpinner.jsx`
+Two exports:
+- `LoadingSpinner` — inline spinner
+- `PageSpinner` — full-page centered spinner (used in App.jsx Suspense fallback + `isBootstrapping`)
+
+### `components/common/ErrorBoundary.jsx`
+React class error boundary wrapping all routes. On uncaught render error shows "Try again / Go home" fallback.
+
+### `components/layout/AppShell.jsx`
+Root layout for authenticated pages. Renders `<Sidebar>` + `<Topbar>` + `<main><Outlet /></main>`. Handles mobile sidebar overlay.
+
+### `components/layout/Sidebar.jsx`
+Left navigation. `NAV_ITEMS` array drives links — each has `label`, `icon`, `to`, `access` (roles array). Unauthorized roles see a locked disabled item. Settings link hidden for non-ADMIN entirely.
+
+### `components/layout/Topbar.jsx`
+Top bar with: hamburger (mobile), page title, `CheckInOut` component, theme toggle, user menu (avatar + logout). `CheckInOut` reads `user.company.workStartTime/workEndTime` to gate check-in button (disabled outside work hours, shows tooltip with allowed window).
+
+### `components/layout/MobileNav.jsx`
+Bottom navigation sheet for mobile. Same `NAV_ITEMS` as Sidebar.
+
+### `components/auth/AuthShell.jsx`
+Two-column auth layout wrapper. Left: feature list (`AUTH_FEATURES` from constants). Right: slot for form content. Used by Login, Register, ChangePassword pages.
+
+### `components/auth/AuthField.jsx`
+Styled input for auth forms. Props: `id`, `type`, `label`, `icon`, `value`, `onChange`, `error`, `readOnly`, `animationClass`. Password type adds show/hide toggle automatically.
+
+---
+
+## Hooks
+
+### `hooks/useFetch.js`
+Data fetching with loading/error/refetch. Takes a function + deps array.
+
+### `hooks/useLocalStorage.js`
+Typed localStorage read/write with JSON serialization.
+
+### `hooks/useTheme.js`
+Reads theme from `ThemeContext`. Convenience wrapper for `useContext(ThemeContext)`.
+
+### `hooks/useSidebar.js`
+Reads sidebar open/close state from `LayoutContext`.
+
+---
+
+## Lib
+
+### `lib/api.js`
+HTTP client with auto-auth, token refresh, FormData detection. See API Client section above.
+
+### `lib/formatters.js`
+- `getInitials(firstName, lastName)` — used in Settings avatar
+- `formatCurrency(n)` — INR formatting
+
+### `lib/validators.js`
+- `getPasswordHints(password)` — returns array of `{ label, valid }` for live strength UI
+- `validateEmail(email)` — boolean
+
+### `lib/utils.js`
+- `cn(...classes)` — clsx + tailwind-merge (conditional className helper)
+
+---
+
+## Constants
+
+### `constants/routes.js`
+All route path strings. Always import from here — never hardcode paths in components.
+
+### `constants/roles.js`
+`USER_ROLES`, `MANAGER_ROLES`, `PAYROLL_ROLES`, `ROLE_LABELS` (display names), `ROUTE_ACCESS`.
+
+### `constants/authFeatures.js`
+Feature bullet list shown in `AuthShell` left panel: "Multi-tenant payroll", "Attendance tracking", "Leave management", "Role-based access".
+
+---
 
 ## Key Patterns
 
@@ -177,146 +360,49 @@ export default function MyPage() {
 }
 ```
 
-### Form handling
+### Modal pattern (portal, gradient header)
 ```jsx
-const [fields, setFields] = useState({ email: "", password: "" });
-const [errors, setErrors] = useState({});
-const [loading, setLoading] = useState(false);
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
-function set(key) {
-  return (e) => {
-    setFields(p => ({ ...p, [key]: e.target.value }));
-    if (errors[key]) setErrors(p => ({ ...p, [key]: "" }));
-  };
+function MyModal({ onClose }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="relative bg-gradient-to-r from-primary to-secondary px-6 py-5">
+          <h2 className="text-lg font-semibold text-white">Title</h2>
+          <button onClick={onClose} className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-6">{/* body */}</div>
+      </div>
+    </div>,
+    document.body
+  );
 }
-```
-
-### Controlled form field
-```jsx
-<AuthField
-  id="email" name="email" type="email" label="Email"
-  value={fields.email} onChange={set("email")} error={errors.email}
-/>
 ```
 
 ### Employee creation payload
 ```js
-// Send monthlyWage — backend auto-computes basicSalary = monthlyWage * 0.5
 api.post("/employees", { firstName, lastName, email, role, monthlyWage, pfNumber })
 // Response: { employee, tempPassword, note }
+// tempPassword shown once — never stored plain
 ```
 
-## Employee Profile Page — `pages/EmployeeDetail.jsx`
+### PDF / HTML report opening
+```js
+// For routes requiring auth — can't pass header via window.open
+// Option 1: fetch with header, create blob URL
+const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+const html = await res.text();
+window.open(URL.createObjectURL(new Blob([html], { type: "text/html" })), "_blank");
 
-Full tabbed profile page. Layout:
-```
-ProfileHeader
-  ├── Avatar (edit overlay for ADMIN/HR)
-  ├── Name + loginId badge + role/jobTitle
-  ├── Email, mobile, location, manager, company
-└── Tabs [Resume | Private Info | Salary Info* | Security]
-     ├── ResumeTab      — About, jobPassion, interests, Skills (chips), Certifications
-     ├── PrivateInfoTab — Personal details + bank account fields
-     ├── SalaryInfoTab  — Only if canViewSalary (PAYROLL_ROLES)
-     └── SecurityTab    — Placeholder
+// Option 2: query param (backend verifyJWT accepts ?token=)
+window.open(`${BASE_URL}/payroll/${id}/pdf?token=${token}`, "_blank");
 ```
 
-**Salary Info tab formula** (all computed in frontend from `employee.monthlyWage`):
-```
-wage   = monthlyWage
-basic  = wage × 0.50
-hra    = basic × 0.50
-sa     = 4167  (fixed ₹4,167)
-pb     = basic × 0.0833
-lta    = basic × 0.0833
-fixed  = wage − (basic + hra + sa + pb + lta)
-pfEmp  = basic × pfRate/100
-pfEr   = basic × pfRate/100
-profTax = 200
-```
-
-## Time Off Page — `pages/TimeOff.jsx`
-
-Role-split views:
-- **Employee**: Shows own leave requests + balance cards fetched live from `GET /leave/allocations/me`. Balance = allocated days − approved leave days. Shows an amber warning card if used > allocated. "NEW" opens `RequestModal`.
-- **Admin/HR Officer**: Shows ALL employees' requests. "NEW" opens `AdminRequestForm` (employee dropdown). Can approve/reject pending requests (✓ / ✗ icon buttons).
-
-Leave types: `"Paid Time Off"` (isPaid: true), `"Sick Leave"` (isPaid: true), `"Unpaid Leave"` (isPaid: false).
-
-**Sick Leave attachment:** The attachment file input only appears when "Sick Leave" is selected. Accepts `image/*` only (no PDF). Sent as `FormData` via `api.post`. Stored on Cloudinary via `uploadLeaveAttachment()` with `resource_type: "auto"`.
-
-**FormData upload:** `api.post` detects `FormData` instances and skips `JSON.stringify`, allowing the browser to set `multipart/form-data` headers automatically.
-
-**Leave balance cards:** Fetched from `GET /leave/allocations/me` (backend filters active allocations by date). Balance = `allocated - used`. If `used > allocated`, card turns amber with an "X days over limit" badge.
-
-`POST /leave` body: `{ leaveType, startDate, endDate, isPaid, reason?, targetUserId? }` + optional `attachment` file field.
-
-`PUT /leave/:id/approve` and `PUT /leave/:id/reject` — allowed for ADMIN, HR_OFFICER, PAYROLL_OFFICER.
-
-**Action column alignment:** The last grid column uses a fixed-width `<span className="w-7">` slot for the paperclip icon so approve/reject buttons stay aligned across all rows regardless of attachment presence.
-
-## Leave Allocation Page — `pages/LeaveAllocation.jsx`
-
-Admin/HR-only page at `/leave-allocation`. Allows creating and deleting leave entitlements for employees.
-
-- **Form fields:** Employee dropdown, Leave Type, Validity Period (start/end dates + "No limit" toggle), Allocation Days (capped to date range), Note.
-- **Days cap:** `max = endDate − startDate + 1` (inclusive). Auto-clamped when dates change. Shows hint when end date is set.
-- **Table:** Lists all company allocations with Employee, Leave Type, From, To, Days, Note, Delete button.
-- **Delete:** `DELETE /leave/allocations/:id` — spinner on row, refetches list, shows toast.
-
-**Data flow for employee balance:**
-1. HR creates allocation via Allocation page → saved to `leave_allocations` table
-2. Employee opens Time Off → `GET /leave/allocations/me` returns active allocations (today within validity period)
-3. Balance computed: `remaining = max(0, allocated - approved_used)`
-
-## Topbar — Check-In/Out (`components/layout/Topbar.jsx`)
-
-The `CheckInOut` component enforces work-hour boundaries:
-- Reads `user.company.workStartTime` and `user.company.workEndTime` (format: `"HH:MM"`).
-- A `setInterval` updates current time every 60 s so the button auto-enables/disables at the boundary.
-- **Check-in** is disabled outside work hours — button shows `"Opens HH:MM AM/PM"` and hovering shows a tooltip with the allowed window.
-- **Check-out** is always allowed (employee may stay past end time).
-- Helper `fmt12("HH:MM")` converts 24-hour strings to 12-hour AM/PM display.
-
-## Payroll Dashboard — `pages/Payroll.jsx`
-
-Role-gated sections:
-- **All allowed roles** (ADMIN, PAYROLL_OFFICER, HR_OFFICER): warning cards, summary tiles, New Joiners chart
-- **ADMIN + PAYROLL_OFFICER only**: Recent Payslips list, Employer Cost chart
-
-Warning cards link to `/employees` and only appear when count > 0:
-- Employees without bank account (`bankAccountNumber` is null)
-- Employees without a manager (`managerId` is null)
-
-Charts use Recharts `BarChart` with monthly/annual toggle. Import `Tooltip` from `"recharts"` — never from the custom Tooltip wrapper.
-
-## Charts (Dashboard / Reports)
-
-Uses `recharts`. Import directly from `"recharts"` — not from the custom `Tooltip` wrapper. Use `var(--color-primary)` and `var(--color-accent)` for chart fill colors.
-
-## Drag-and-Drop (Deals Pipeline)
-
-Uses `@dnd-kit/core` + `@dnd-kit/sortable`. Key points:
-- `DndContext` wraps the board with `PointerSensor` (8px activation threshold)
-- Each column has `SortableContext` with its deal IDs
-- Each card uses `useSortable({ id })` — exposes drag handle via `...listeners`
-- `DragOverlay` renders a **plain div ghost**, NOT the sortable card (avoids hook context error)
-- Cross-column move: update `deal.stage` in `onDragOver`, finalize in `onDragEnd`
-
-## Error Handling
-
-**ErrorBoundary** — wraps all routes in `App.jsx`. On an uncaught React render error it shows a "Try again / Go home" fallback. Catches component crashes only (not async/fetch errors).
-
-**Toast** — for user-visible async errors call `toast({ title, description, variant: "error" })` inside catch blocks. Do not use `alert()`.
-
-## Known Deviations to Fix
-
-- PropTypes not yet added to `common/` and `crm/` components
-- DataTable shows a spinner on load — should use Skeleton rows
-- Some pages exceed 150 lines (Settings, DealPipeline, DataTable, EmployeeDetail)
-- Pages are flat files not `PageName/index.jsx` folders yet
-- Two data-driven inline `style={{ backgroundColor }}` usages are acceptable exceptions
-
-## Guidelines Reference
-
-Full coding standards: `frontend/guides/frontend-guidelines.md`
+## Known Deviations
+- PropTypes not added to most components
+- localStorage theme key is `"crm-theme"` (legacy name — renaming would break existing sessions, keep as-is)
+- localStorage auth keys: `"accessToken"`, `"refreshToken"`, `"user"`

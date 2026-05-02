@@ -242,3 +242,39 @@ Summary: `netPay`, `employerCost`, `totalWorkingDays`, `payableDays`, `attendanc
 | `ltaPercent` | 8.33 | % of basicProrated |
 | `fixedAllowancePercent` | 16.67 | % of basicProrated |
 | `professionalTaxAmount` | 200 | Fixed ₹ deduction per month |
+
+## Reports Module (`/api/reports`)
+
+### Routes — `routes/report.route.js`
+
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET | `/salary-statement` | ADMIN, PAYROLL_OFFICER | Full yearly salary breakdown HTML for an employee |
+
+Query params: `employeeId` (int), `year` (int)
+
+### Service — `services/report.service.js`
+
+- `generateSalaryStatementReport(companyId, employeeId, year)` — returns full print-ready HTML
+- Earnings table: Basic, HRA, Standard Allowance, Performance Bonus, LTA, Fixed Allowance, Gross Pay
+- Deductions table (employee only): PF Employee, Professional Tax, TDS (hidden if zero), Total Deductions
+- Employer Contributions section: PF Employer (separate from deductions — not deducted from employee)
+- Net Pay row + 3 summary cards (Gross / Deductions / Net)
+- "Salary Effective From" = 1st of the employee's `joiningDate` month (local date, not UTC)
+- Designation = role label (ADMIN → "Admin", EMPLOYEE → "Employee", etc.)
+- Returns `"📭 No payslips found"` message when no data for that year
+
+## Employee Password Reset (`POST /api/employees/:id/reset-password`)
+
+Roles: ADMIN, HR_OFFICER
+
+- Generates a new temp password via `generateTempPassword()`
+- Hashes it with bcrypt(10), sets `mustChangePassword: true`, clears `refreshToken`
+- Sends email to employee with new credentials (fire-and-forget)
+- Does NOT return the temp password in response — email only
+
+## JWT Auth — query param fallback
+
+`verifyJWT` middleware (`middleware/auth.middleware.js`) accepts the access token via:
+1. `Authorization: Bearer <token>` header (normal API calls)
+2. `?token=<token>` query param (used by `/:id/pdf` and `/reports/salary-statement` opened via `window.open`)

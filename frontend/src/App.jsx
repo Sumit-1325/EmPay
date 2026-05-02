@@ -14,7 +14,6 @@ import { ROUTES } from "@/constants/routes";
 const LoginPage          = lazy(() => import("@/pages/LoginPage"));
 const RegisterPage       = lazy(() => import("@/pages/RegisterPage"));
 const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage"));
-const Dashboard          = lazy(() => import("@/pages/Dashboard"));
 const Employees          = lazy(() => import("@/pages/Employees"));
 const EmployeeDetail     = lazy(() => import("@/pages/EmployeeDetail"));
 const Attendance         = lazy(() => import("@/pages/Attendance"));
