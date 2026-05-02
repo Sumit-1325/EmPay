@@ -55,9 +55,9 @@
    LIGHT MODE (default :root)
    ═══════════════════════════════════════════ */
 :root {
-  --background: #ffffff;
+  --background: #f8fafc;
   --foreground: #0f172a;
-  --card: #f8fafc;
+  --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
@@ -71,8 +71,8 @@
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+  --border: #cbd5e1;
+  --input: #cbd5e1;
   --ring: #6366f1;
 
   --chart-1: oklch(0.646 0.222 41.116);
@@ -83,13 +83,13 @@
 
   --radius: 0.625rem;
 
-  --sidebar: #f8fafc;
+  --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
   --sidebar-primary: #6366f1;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #a855f7;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #e2e8f0;
+  --sidebar-border: #cbd5e1;
   --sidebar-ring: #6366f1;
 }
 

@@ -1,15 +1,13 @@
-# CRM Frontend Developer Guidelines
+# EmPay HRMS Frontend Developer Guidelines
 **Folder structure · Naming conventions · Component rules · Coding standards**
 
 ---
 
 ## 1. Purpose & Scope
 
-This document defines the rules every developer must follow when building or modifying the CRM frontend. It covers folder structure, file naming, component architecture, theming, animation, and code quality. These are not suggestions — they are the standard.
+This document defines the rules every developer must follow when building or modifying the EmPay HRMS frontend. It covers folder structure, file naming, component architecture, theming, animation, and code quality. These are not suggestions — they are the standard.
 
-> ⚠️ **WARNING:** Frontend only. Do not touch API calls, data fetching logic, or any backend code during the UI refactor phase.
-
-**Stack:** React (JavaScript), shadcn/ui, Tailwind CSS, Vite.
+**Stack:** React 19 (JavaScript), shadcn/ui, Tailwind v4 (CSS-first), Vite 8.
 
 ---
 
@@ -25,12 +23,12 @@ src/
     ui/          ← shadcn primitives — NEVER modify these
     common/      ← shared across 2+ pages
     layout/      ← AppShell, Sidebar, Topbar, MobileNav
-    crm/         ← CRM domain components
-  pages/         ← one folder per route
+    auth/        ← AuthShell, AuthField — auth pages only
+  pages/         ← one file per route (flat for now)
   hooks/         ← custom React hooks
-  lib/           ← utils, formatters, helpers
-  constants/     ← enums, config values, static maps
-  styles/        ← globals.css, tokens.css
+  lib/           ← api.js, formatters.js, validators.js, utils.js
+  constants/     ← routes.js, roles.js, static maps
+  context/       ← AuthContext, ThemeContext, LayoutContext, ToastContext
 ```
 
 ### 2.2 Component Layers Explained
@@ -38,28 +36,15 @@ src/
 | Layer | Folder | What goes here | Rule |
 |-------|--------|---------------|------|
 | Primitives | `components/ui/` | shadcn/ui generated files | Never edit |
-| Common | `components/common/` | Avatar, Badge, DataTable, StatCard, PageHeader, EmptyState, Skeleton | Reusable across pages |
+| Common | `components/common/` | Avatar, Badge, DataTable, StatCard, PageHeader, EmptyState, Skeleton, Tabs | Reusable across pages |
 | Layout | `components/layout/` | AppShell, Sidebar, Topbar, MobileNav | One instance per app |
-| CRM Domain | `components/crm/` | ContactCard, DealKanbanCard, ActivityFeed, PipelineStage | CRM-specific only |
-| Pages | `pages/` | Route-level components, one folder per route | No business logic |
+| Auth | `components/auth/` | AuthShell, AuthField | Auth pages only |
+| Pages | `pages/` | Route-level components, one file per route | No business logic |
 | Hooks | `hooks/` | useTheme, useDebounce, useFetch, usePagination | Pure logic, no JSX |
-| Lib | `lib/` | formatDate, formatCurrency, cn() utility | Pure functions only |
-| Constants | `constants/` | DEAL_STAGES, STATUS_MAP, NAV_ITEMS | No functions |
+| Lib | `lib/` | api.js, formatters.js, cn() utility | Pure functions only |
+| Constants | `constants/` | ROUTES, USER_ROLES, ROUTE_ACCESS, NAV_ITEMS | No functions |
 
-### 2.3 Page Folder Structure
-
-Each page lives in its own folder with this shape:
-
-```
-pages/
-  Contacts/
-    index.jsx           ← default export, route entry
-    ContactsTable.jsx   ← page-specific sub-component
-    ContactsFilters.jsx
-    useContactsPage.js  ← page-scoped logic hook (optional)
-```
-
-> ⚠️ **WARNING:** If a sub-component is used on more than one page, move it to `components/common/` or `components/crm/` immediately.
+> If a sub-component is used on more than one page, move it to `components/common/` immediately.
 
 ---
 
@@ -69,34 +54,31 @@ pages/
 
 | Type | Convention | Example |
 |------|-----------|---------|
-| React component file | PascalCase.jsx | `ContactCard.jsx` |
-| Hook file | camelCase.js | `useDebounce.js` |
-| Utility / helper | camelCase.js | `formatDate.js` |
-| Constants file | camelCase.js | `dealStages.js` |
-| Page folder | PascalCase/ | `Contacts/` |
-| Page entry file | index.jsx | `pages/Contacts/index.jsx` |
-| Style file | kebab-case.css | `globals.css` |
+| React component file | PascalCase.jsx | `EmployeeDetail.jsx` |
+| Hook file | camelCase.js | `useFetch.js` |
+| Utility / helper | camelCase.js | `formatters.js` |
+| Constants file | camelCase.js | `roles.js` |
+| Style file | kebab-case.css | `index.css` |
 
 ### 3.2 Component & Variable Names
 
-- **Components:** PascalCase — `ContactCard`, `StatCard`, `AppShell`
-- **Props:** camelCase — `isLoading`, `onClose`, `contactId`
-- **Event handlers:** `on` + Event — `onClick`, `onFilterChange`, `onRowSelect`
-- **Boolean props:** `is` / `has` / `show` prefix — `isOpen`, `hasError`, `showSidebar`
-- **Hooks:** `use` prefix — `useTheme`, `usePagination`, `useContactsPage`
-- **Constants:** `SCREAMING_SNAKE_CASE` — `DEAL_STAGES`, `STATUS_MAP`
-- **CSS variables:** `--crm-` prefix — `--crm-bg-primary`, `--crm-text-muted`
+- **Components:** PascalCase — `EmployeeCard`, `StatCard`, `AppShell`
+- **Props:** camelCase — `isLoading`, `onClose`, `employeeId`
+- **Event handlers:** `on` + Event — `onClick`, `onFilterChange`
+- **Boolean props:** `is` / `has` / `show` prefix — `isOpen`, `hasError`
+- **Hooks:** `use` prefix — `useTheme`, `useFetch`
+- **Constants:** `SCREAMING_SNAKE_CASE` — `USER_ROLES`, `ROUTE_ACCESS`
 
 ### 3.3 Exports
 
-✅ **DO:** Use named exports for ALL components. Only pages (`index.jsx`) use default exports.
+✅ **DO:** Use named exports for ALL components. Only pages use default exports.
 
 ```jsx
 // ✅ CORRECT — named export
-export function ContactCard({ contact }) { ... }
+export function EmployeeCard({ employee }) { ... }
 
 // ✅ CORRECT — page default export
-export default function ContactsPage() { ... }
+export default function EmployeeDetail() { ... }
 
 // ❌ WRONG — no anonymous default exports in components
 export default function() { ... }
@@ -110,13 +92,13 @@ export default function() { ... }
 
 Each component does one thing. If a component is doing layout AND data filtering AND rendering a table, split it.
 
-> ⚠️ **WARNING:** If your component file exceeds 150 lines, it probably needs to be split.
+> If your component file exceeds 150 lines, it probably needs to be split. (EmployeeDetail.jsx is an accepted exception due to tab complexity.)
 
 ### 4.2 Props
 
-- All props must be explicitly destructured — no props object spreading without reason
+- All props must be explicitly destructured
 - Provide default values for optional props inline
-- Use PropTypes for any shared component in `common/` or `crm/`
+- Use PropTypes for any shared component in `common/`
 
 ```jsx
 import PropTypes from "prop-types";
@@ -135,50 +117,31 @@ StatCard.propTypes = {
 
 ### 4.3 No inline styles
 
-❌ **DON'T:** Never use `style={{ }}` in JSX. Use Tailwind classes only. If a value is dynamic, use CSS variables or `cn()` helper.
+❌ **NEVER** use `style={{ }}` in JSX. Use Tailwind classes only. Two acceptable exceptions: avatar `style={{ backgroundColor }}` and chart color values where Tailwind doesn't reach CSS variables directly.
 
 ```jsx
 // ❌ WRONG
 <div style={{ marginTop: "12px", color: "#111" }}>
 
 // ✅ CORRECT
-<div className="mt-3 text-gray-900">
+<div className="mt-3 text-foreground">
 ```
 
 ### 4.4 `cn()` for conditional classes
-
-Use the `cn()` utility (from `lib/utils.js`) to compose conditional Tailwind classes cleanly.
 
 ```jsx
 import { cn } from "@/lib/utils";
 
 <div className={cn(
   "rounded-md border px-4 py-2 text-sm",
-  isActive && "bg-black text-white",
+  isActive && "bg-primary text-white",
   isDisabled && "opacity-50 cursor-not-allowed"
 )}>
 ```
 
 ### 4.5 No logic in JSX
 
-✅ **DO:** Keep JSX clean. Move complex expressions, map transforms, and conditions into variables above the `return`.
-
-```jsx
-// ❌ WRONG — logic inside JSX
-return (
-  <div>
-    {contacts.filter(c => c.status === "active").map(c => ...)}
-  </div>
-);
-
-// ✅ CORRECT — compute above return
-const activeContacts = contacts.filter(c => c.status === "active");
-return (
-  <div>
-    {activeContacts.map(c => <ContactCard key={c.id} contact={c} />)}
-  </div>
-);
-```
+✅ **DO:** Keep JSX clean. Move complex expressions and conditions into variables above `return`.
 
 ---
 
@@ -186,224 +149,165 @@ return (
 
 ### 5.1 Color Tokens
 
-All colors must come from CSS variables defined in `styles/tokens.css`. Never hardcode hex values in Tailwind classes or JSX.
+All colors come from CSS variables defined in `src/index.css`. **Never hardcode hex values.**
 
-| Token | Light Mode | Dark Mode | Usage |
-|-------|-----------|----------|-------|
-| `--crm-bg-primary` | `#FFFFFF` | `#1A1A1A` | Page / card backgrounds |
-| `--crm-bg-secondary` | `#F9FAFB` | `#262626` | Sidebar, table zebra rows |
-| `--crm-bg-tertiary` | `#F3F4F6` | `#2E2E2E` | Hover states, subtle fills |
-| `--crm-text-primary` | `#111827` | `#F9FAFB` | Headings, primary content |
-| `--crm-text-muted` | `#6B7280` | `#9CA3AF` | Labels, secondary text |
-| `--crm-border` | `#E5E7EB` | `#3A3A3A` | All borders |
-| `--crm-accent` | `#111827` | `#F9FAFB` | Buttons, active states |
+| Token | Usage |
+|-------|-------|
+| `--primary` | #6366f1 indigo — CTAs, active states, chart primary |
+| `--secondary` | #a855f7 purple |
+| `--accent` | #14b8a6 teal — chart secondary |
+| `--background` | Page background |
+| `--foreground` | Primary text |
+| `--card` | Card backgrounds |
+| `--muted` | Subtle fills, disabled |
+| `--muted-foreground` | Secondary text, labels |
+| `--border` | All borders |
+| `--destructive` | Error states, delete actions |
+
+In Tailwind: `bg-primary`, `text-foreground`, `border-border`, `text-muted-foreground`, etc.
 
 ### 5.2 Typography Scale
 
-| Usage | Class | Size |
-|-------|-------|------|
-| Page title | `text-2xl font-bold` | 24px |
-| Section heading | `text-lg font-semibold` | 18px |
-| Card title | `text-base font-medium` | 16px |
-| Body / paragraph | `text-sm` | 14px |
-| Label / caption | `text-xs text-muted-foreground` | 12px |
-| Data / numbers | `font-mono text-sm` | 14px mono |
+| Usage | Class |
+|-------|-------|
+| Page title | `text-2xl font-bold` |
+| Section heading | `text-lg font-semibold` |
+| Card title | `text-base font-medium` |
+| Body | `text-sm` |
+| Label / caption | `text-xs text-muted-foreground` |
 
-### 5.3 Spacing Scale
+### 5.3 Spacing
 
-Use only Tailwind spacing utilities. Stick to the 4px base grid.
-
-- **Component padding:** `p-4` (16px) or `p-6` (24px) for cards
-- **Section gaps:** `gap-4` or `gap-6`
-- **Page padding:** `px-6 py-8` on the main content wrapper
-- **Inline spacing:** `gap-2` or `gap-3` for icon + text combos
+Use Tailwind spacing utilities on the 4px grid. Standard card padding: `p-5` or `p-6`. Section gaps: `gap-4` or `gap-6`.
 
 ### 5.4 Border Radius
 
-| Element | Class | Value |
-|---------|-------|-------|
-| Cards | `rounded-xl` | 12px |
-| Inputs | `rounded-md` | 6px |
-| Buttons | `rounded-md` | 6px |
-| Badges | `rounded-full` | 9999px |
-| Avatars | `rounded-full` | 9999px |
-| Modals | `rounded-xl` | 12px |
+| Element | Class |
+|---------|-------|
+| Cards | `rounded-xl` |
+| Inputs, buttons | `rounded-md` |
+| Badges, avatars | `rounded-full` |
 
 ### 5.5 Dark Mode
 
-Dark mode is toggled by adding `class="dark"` on the `<html>` element. Use Tailwind `dark:` variants paired with CSS variables.
-
-✅ **DO:** Never use a separate dark theme file. All dark styles go inline with `dark:` prefix.
-
-```jsx
-<div className="bg-white dark:bg-[--crm-bg-primary] text-gray-900 dark:text-[--crm-text-primary]">
-```
+Dark mode is toggled by `class="dark"` on `<html>` (set by ThemeProvider). Use Tailwind `dark:` variants. Never write a separate dark theme file.
 
 ---
 
 ## 6. Animation Rules
 
-❌ **DON'T:** No third-party animation libraries (Framer Motion, GSAP, etc.). Use Tailwind transition utilities and CSS `@keyframes` only.
+❌ **No third-party animation libraries** (Framer Motion, GSAP, etc.). Use Tailwind transition utilities and CSS `@keyframes` only.
 
-### 6.1 Allowed Animation Utilities
-
-| Utility | When to use |
-|---------|------------|
-| `transition-all duration-150` | Button hover, badge hover |
-| `transition-colors duration-200` | Sidebar item hover, table row hover |
-| `transition-transform duration-200` | Sidebar collapse, dropdown open |
-| `transition-opacity duration-300` | Page mount fade-in, skeleton → content |
-| `animate-pulse` | Skeleton loading placeholders |
-| `animate-spin` | Loading spinners (use sparingly) |
-
-### 6.2 Page Mount Animation
-
-Every page should fade in on mount using this pattern — do not add extra animation libraries for this:
-
-```css
-/* In globals.css */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fadeInUp {
-  animation: fadeInUp 0.25s ease-out both;
-}
-```
-
-```jsx
-/* In your page component */
-<div className="animate-fadeInUp">
-  ...page content
-</div>
-```
-
-### 6.3 When NOT to animate
-
-- Do not animate data tables — rows appearing should be instant
-- Do not animate error states or form validation messages
-- Do not animate anything on every re-render — only on mount or intentional state change
+Every page fades in on mount with `animate-fade-up` class (defined in `index.css`). Do not animate data tables or error messages.
 
 ---
 
-## 7. Custom Hooks
+## 7. API Client — `lib/api.js`
 
-### 7.1 Rules
+```js
+import { api } from "@/lib/api";
 
-- Every hook file starts with `use` — `useDebounce.js`, `usePagination.js`
-- Hooks must return only values and setter functions — no JSX ever
-- Hooks that are used on more than one page go in `src/hooks/`
-- Page-specific hooks can live inside the page folder as `useContactsPage.js`
-- Never call a hook conditionally — always at the top level of the component
-
-### 7.2 Standard Hooks to Build
-
-| Hook | Purpose | Returns |
-|------|---------|---------|
-| `useTheme()` | Manages dark/light mode toggle | `{ theme, toggleTheme }` |
-| `useDebounce(val, ms)` | Delays a value update | `debouncedValue` |
-| `usePagination(total)` | Tracks page, pageSize, offset | `{ page, pageSize, setPage }` |
-| `useLocalStorage(key)` | Persist state to localStorage | `[value, setValue]` |
-| `useMediaQuery(query)` | Detect breakpoint (mobile/tablet) | `boolean` |
-
----
-
-## 8. shadcn/ui Rules
-
-❌ **DON'T:** Never edit files inside `components/ui/`. These are generated and will be overwritten. Extend by wrapping, not modifying.
-
-### 8.1 How to extend a shadcn component
-
-Create a wrapper in `components/common/` that adds your defaults:
-
-```jsx
-// components/common/AppButton.jsx
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-export function AppButton({ className, ...props }) {
-  return (
-    <Button
-      className={cn("font-medium transition-all duration-150", className)}
-      {...props}
-    />
-  );
-}
+api.get("/employees")
+api.post("/employees", body)
+api.put("/employees/123", body)
+api.patch("/employees/123/avatar", formData)  // pass FormData directly
+api.delete("/employees/123")
 ```
 
-### 8.2 Which shadcn components are approved
+**FormData rule:** When uploading files (avatar), pass `FormData` directly to `api.patch`. Do NOT set `Content-Type` manually — the browser adds the correct `multipart/form-data; boundary=...` header automatically. The client detects `instanceof FormData` and skips stringification.
 
-| Component | Approved use |
-|-----------|-------------|
-| Button | All CTAs, actions |
-| Input | All form text inputs |
-| Select | All dropdowns |
-| Dialog | Modals and confirmations |
-| Table | Data tables (wrap in DataTable common component) |
-| Badge | Status labels, tags |
-| Avatar | User/contact avatars |
-| Skeleton | Loading states — use instead of spinners |
-| Tooltip | Icon-only button labels |
-| Sheet | Mobile navigation drawer |
-| Separator | Section dividers |
+**Token refresh:** On 401, the client auto-refreshes and retries. skipRefresh list: `/auth/login`, `/auth/register`, `/auth/refresh-token` only — never add `/auth/me` to this list.
 
 ---
 
-## 9. Accessibility (Non-Negotiable)
+## 8. Role-Based Access — `constants/roles.js`
+
+```js
+USER_ROLES     // { ADMIN, HR_OFFICER, PAYROLL_OFFICER, EMPLOYEE, SUPER_ADMIN }
+MANAGER_ROLES  // [ADMIN, HR_OFFICER]
+PAYROLL_ROLES  // [ADMIN, PAYROLL_OFFICER]
+ROUTE_ACCESS   // { EMPLOYEES: [...], PAYROLL: [...], ... }
+```
+
+**Sidebar gating:** Nav items with an `access` array render as a disabled `<div>` with Lock icon if the user's role is not in the array. Do not redirect on unauthorized — prevent the click entirely.
+
+**Employee profile gates:**
+- `canEdit = MANAGER_ROLES.includes(user?.role)` — edit resume/bio fields, skills, certs
+- `canViewSalary = PAYROLL_ROLES.includes(user?.role)` — show Salary Info tab
+- `canEditSalary = user?.role === "ADMIN"` — edit monthlyWage and PF fields
+
+---
+
+## 9. Data Fetching — `hooks/useFetch.js`
+
+```js
+const { data, loading, error, refetch } = useFetch(() => api.get("/employees"), []);
+```
+
+Always pass a **function** and a deps array. Never pass a string path directly.
+
+---
+
+## 10. Recharts Usage
+
+Import directly from `"recharts"` — not from the custom Tooltip wrapper:
+
+```js
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+```
+
+Use `var(--color-primary)` and `var(--color-accent)` for `fill` props. Pass custom `contentStyle` to Tooltip for dark mode compatibility.
+
+---
+
+## 11. shadcn/ui Rules
+
+❌ **Never edit files inside `components/ui/`.** These are generated. Extend by wrapping in `components/common/`.
+
+---
+
+## 12. Accessibility (Non-Negotiable)
 
 - All icon-only buttons must have an `aria-label`
 - All form inputs must have an associated `<label>`
 - Focus rings must be visible — never use `outline-none` without a replacement
-- Interactive table rows must support keyboard navigation (`tabIndex`, `onKeyDown`)
 - Color alone must never convey meaning — always pair with text or icon
-- Dark mode contrast ratio must pass WCAG AA (4.5:1 for normal text)
-
-```jsx
-// ✅ CORRECT — icon button with aria-label
-<button aria-label="Close sidebar">
-  <X className="h-4 w-4" />
-</button>
-
-// ❌ WRONG — no accessible label
-<button><X className="h-4 w-4" /></button>
-```
 
 ---
 
-## 10. Code Quality Checklist
+## 13. Code Quality Checklist
 
-Before opening a PR, verify every item below:
+Before opening a PR, verify every item:
 
 | Check | Rule |
 |-------|------|
 | File location | Component is in the correct layer folder |
-| Named export | Component uses named export (except page `index.jsx`) |
-| No inline styles | Zero `style={{ }}` in JSX |
+| Named export | Component uses named export (except page files) |
+| No inline styles | Zero `style={{ }}` in JSX (except documented exceptions) |
 | No hardcoded colors | No hex values in JSX or `className` |
-| PropTypes | All props in `common/` and `crm/` components are typed |
+| PropTypes | All props in `common/` components are typed |
 | Accessibility | Icon buttons have `aria-label`, inputs have labels |
-| Dark mode | Every new UI element has `dark:` variant |
-| Empty state | Every list/table has an `EmptyState` component |
-| Loading state | Every async section uses `Skeleton`, not spinner |
-| No animation libs | Only Tailwind transition + CSS `@keyframes` used |
-| Mobile responsive | Tested at 375px, 768px, 1280px widths |
+| Dark mode | Every new UI element has `dark:` variant or uses CSS variable classes |
+| Empty state | Every list/table has an `EmptyState` or equivalent |
+| Loading state | Async sections show loading feedback |
+| No animation libs | Only Tailwind transition + CSS `@keyframes` |
+| Role gates | Salary Info, Payroll page sections gated to correct roles |
 
 ---
 
-## 11. Quick Reference — Do's and Don'ts
+## 14. Quick Reference — Do's and Don'ts
 
 | ✅ DO | ❌ DON'T |
 |------|---------|
 | Use named exports for components | Use anonymous default exports in components |
-| Wrap shadcn primitives in `common/` components | Edit files inside `components/ui/` |
-| Use Tailwind `dark:` variants for dark mode | Create a separate dark theme file |
-| Use Tailwind transition utilities for animation | Install Framer Motion or GSAP |
-| Use `Skeleton` for loading states | Use full-page spinners |
-| Define colors as CSS variables in `tokens.css` | Hardcode hex values in JSX |
-| Keep components under 150 lines | Build god components that do everything |
+| Wrap shadcn primitives in `common/` | Edit files inside `components/ui/` |
+| Use CSS variable Tailwind classes | Hardcode hex values anywhere |
+| Pass FormData directly to api.patch | Set Content-Type manually for file uploads |
 | Use `cn()` for conditional classes | String-concatenate class names |
-| Add `aria-label` to icon-only buttons | Leave interactive elements unlabeled |
+| Import Tooltip from "recharts" | Import Tooltip from the custom wrapper for charts |
+| Gate salary/payroll views by role | Show 403 errors for unauthorized views |
+| Use Tailwind transitions for animation | Install Framer Motion or GSAP |
 
 ---
 
-*CRM Frontend Guidelines · Version 1.0 · Follow these rules on every PR*
+*EmPay HRMS Frontend Guidelines · Version 2.0*

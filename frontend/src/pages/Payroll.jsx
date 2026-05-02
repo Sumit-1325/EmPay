@@ -1,26 +1,49 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
 import { AlertTriangle, Users, Wallet, TrendingUp, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useFetch } from "@/hooks/useFetch";
+import { useToast } from "@/context/ToastContext";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PAYROLL_ROLES } from "@/constants/roles";
 import { ROUTES } from "@/constants/routes";
+import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n ?? 0);
+
+// ─── Tab nav ──────────────────────────────────────────────────────────────────
+
+function TabNav({ active, onChange, tabs }) {
+  return (
+    <div className="flex gap-1 border-b border-border mb-6">
+      {tabs.map((t) => (
+        <button
+          key={t.value}
+          onClick={() => onChange(t.value)}
+          className={cn(
+            "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+            active === t.value
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard tab ────────────────────────────────────────────────────────────
 
 function WarningCard({ count, label, linkTo }) {
   const navigate = useNavigate();
@@ -41,7 +64,7 @@ function WarningCard({ count, label, linkTo }) {
 function SummaryTile({ icon: Icon, label, value, color }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5 flex items-center gap-4">
-      <div className={`rounded-lg p-2.5 ${color}`}>
+      <div className={cn("rounded-lg p-2.5", color)}>
         <Icon className="h-5 w-5 text-white" />
       </div>
       <div>
@@ -63,11 +86,10 @@ function ChartCard({ title, children, toggle, onToggle, options }) {
               <button
                 key={o.value}
                 onClick={() => onToggle(o.value)}
-                className={`rounded-md px-3 py-1 transition-colors ${
-                  toggle === o.value
-                    ? "bg-primary text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={cn(
+                  "rounded-md px-3 py-1 transition-colors",
+                  toggle === o.value ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 {o.label}
               </button>
@@ -80,156 +102,331 @@ function ChartCard({ title, children, toggle, onToggle, options }) {
   );
 }
 
-function PayslipRow({ payslip }) {
-  const name = [payslip.user?.firstName, payslip.user?.lastName].filter(Boolean).join(" ") || payslip.user?.loginId;
-  const monthLabel = MONTH_NAMES[(payslip.month ?? 1) - 1];
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-          {name.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <p className="text-sm font-medium text-foreground">{name}</p>
-          <p className="text-xs text-muted-foreground">{monthLabel} {payslip.year}</p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="text-sm font-semibold text-foreground">{fmt(payslip.netPay)}</p>
-        <span className={`text-xs font-medium ${payslip.paidAt ? "text-green-500" : "text-yellow-500"}`}>
-          {payslip.paidAt ? "Paid" : "Pending"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-export default function Payroll() {
-  const { user } = useAuth();
+function DashboardTab() {
+  const { user }  = useAuth();
   const [costView,    setCostView]    = useState("monthly");
   const [joiningView, setJoiningView] = useState("monthly");
 
   const canViewPayroll = PAYROLL_ROLES.includes(user?.role);
   const isHR           = user?.role === "HR_OFFICER";
 
-  const { data, loading, error } = useFetch(
-    () => api.get("/payroll/dashboard"),
-    []
-  );
+  const { data, loading, error } = useFetch(() => api.get("/payroll/dashboard"), []);
 
-  const summary       = data?.summary        ?? {};
-  const recentPayslips = data?.recentPayslips ?? [];
-  const costByMonth   = data?.costByMonth     ?? [];
-  const joiningByMonth = data?.joiningByMonth ?? [];
+  const summary        = data?.summary        ?? {};
+  const recentPayslips = data?.recentPayslips  ?? [];
+  const costByMonth    = data?.costByMonth     ?? [];
+  const joiningByMonth = data?.joiningByMonth  ?? [];
+  const annualCost     = costByMonth.reduce((s, d) => s + d.amount, 0);
 
-  const annualCost = costByMonth.reduce((s, d) => s + d.amount, 0);
-
-  // For annual toggle we just show the cumulative year total as a single bar
   const costChartData    = costView    === "monthly" ? costByMonth    : [{ label: "This Year", amount: annualCost }];
   const joiningChartData = joiningView === "monthly" ? joiningByMonth : [{ label: "YTD", count: joiningByMonth.reduce((s, d) => s + d.count, 0) }];
+
+  if (loading) return <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+  if (error)   return <p className="text-sm text-destructive">Failed to load dashboard data.</p>;
+
+  return (
+    <div className="space-y-6">
+      {(summary.missingBank > 0 || summary.missingManager > 0) && (
+        <div className="space-y-2">
+          <WarningCard count={summary.missingBank}    label="employee(s) without bank account"      linkTo={ROUTES.EMPLOYEES} />
+          <WarningCard count={summary.missingManager} label="employee(s) without a manager assigned" linkTo={ROUTES.EMPLOYEES} />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <SummaryTile icon={Users}      label="Total Employees"   value={summary.totalEmployees ?? 0}                              color="bg-primary" />
+        <SummaryTile icon={Wallet}     label="Payslips Run"      value={recentPayslips.length}                                    color="bg-secondary" />
+        <SummaryTile icon={TrendingUp} label="Annual Cost"       value={fmt(annualCost)}                                          color="bg-accent" />
+        <SummaryTile icon={UserPlus}   label="New Joiners (YTD)" value={joiningByMonth.reduce((s, d) => s + d.count, 0)}         color="bg-muted-foreground" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {canViewPayroll && (
+          <div className="rounded-xl border border-border bg-card p-5 lg:col-span-1 space-y-1">
+            <h3 className="font-semibold text-foreground mb-3">Recent Payslips</h3>
+            {recentPayslips.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No payslips yet.</p>
+            ) : (
+              recentPayslips.slice(0, 8).map((p) => {
+                const name = [p.user?.firstName, p.user?.lastName].filter(Boolean).join(" ") || p.user?.loginId;
+                return (
+                  <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{name}</p>
+                        <p className="text-xs text-muted-foreground">{MONTH_NAMES[(p.month ?? 1) - 1]} {p.year}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-foreground">{fmt(p.netPay)}</p>
+                      <span className={cn("text-xs font-medium", p.paidAt ? "text-green-500" : "text-yellow-500")}>
+                        {p.paidAt ? "Paid" : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        <div className={cn("space-y-6", canViewPayroll && !isHR ? "lg:col-span-2" : "lg:col-span-3")}>
+          {canViewPayroll && !isHR && (
+            <ChartCard title="Employer Cost" toggle={costView} onToggle={setCostView}
+              options={[{ label: "Monthly", value: "monthly" }, { label: "Annual", value: "annual" }]}
+            >
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={costChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+                  <RechartsTooltip formatter={(v) => [fmt(v), "Cost"]} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="amount" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+          <ChartCard title="New Joiners" toggle={joiningView} onToggle={setJoiningView}
+            options={[{ label: "Monthly", value: "monthly" }, { label: "YTD", value: "annual" }]}
+          >
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={joiningChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+                <RechartsTooltip formatter={(v) => [v, "Joiners"]} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="count" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Payrun tab ───────────────────────────────────────────────────────────────
+
+function PayrunTab() {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear]   = useState(now.getFullYear());
+  const { toast }         = useToast();
+  const [paying, setPaying] = useState(null);
+
+  const { data, loading, refetch } = useFetch(
+    () => api.get(`/payroll?month=${month}&year=${year}`),
+    [month, year]
+  );
+  const payslips = data?.payslips ?? [];
+
+  async function markPaid(id) {
+    setPaying(id);
+    try {
+      await api.patch(`/payroll/${id}/pay`, {});
+      toast({ title: "Marked as paid", variant: "success" });
+      refetch();
+    } catch (err) {
+      toast({ title: err.message, variant: "error" });
+    } finally {
+      setPaying(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Month / Year filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={month}
+          onChange={(e) => setMonth(Number(e.target.value))}
+          className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {FULL_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+        </select>
+        <select
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <span className="text-xs text-muted-foreground ml-1">{payslips.length} record{payslips.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="grid grid-cols-[1fr_100px_120px_120px_110px] bg-muted/40 border-b border-border">
+          {["Employee", "Month", "Basic Salary", "Net Pay", "Status"].map((h) => (
+            <div key={h} className="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</div>
+          ))}
+        </div>
+
+        {loading ? (
+          [...Array(4)].map((_, i) => (
+            <div key={i} className="grid grid-cols-[1fr_100px_120px_120px_110px] border-b border-border last:border-0">
+              {[...Array(5)].map((_, j) => (
+                <div key={j} className="px-4 py-3"><div className="h-4 rounded bg-muted/40 animate-pulse" /></div>
+              ))}
+            </div>
+          ))
+        ) : payslips.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">No payslips for this period.</div>
+        ) : (
+          payslips.map((p) => {
+            const name = [p.user?.firstName, p.user?.lastName].filter(Boolean).join(" ") || p.user?.loginId;
+            return (
+              <div key={p.id} className="grid grid-cols-[1fr_100px_120px_120px_110px] items-center border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <div className="px-4 py-3 flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm text-foreground">{name}</span>
+                </div>
+                <div className="px-4 py-3 text-sm text-muted-foreground">{MONTH_NAMES[p.month - 1]}</div>
+                <div className="px-4 py-3 text-sm text-foreground font-mono">{fmt(p.basicSalary)}</div>
+                <div className="px-4 py-3 text-sm font-semibold text-foreground">{fmt(p.netPay)}</div>
+                <div className="px-4 py-3">
+                  {p.paidAt ? (
+                    <span className="text-xs font-medium text-green-500">✓ Paid</span>
+                  ) : (
+                    <button
+                      onClick={() => markPaid(p.id)}
+                      disabled={paying === p.id}
+                      className="text-xs rounded-md bg-primary/10 text-primary px-2.5 py-1 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    >
+                      {paying === p.id ? "…" : "Mark Paid"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Configuration tab ────────────────────────────────────────────────────────
+
+function ConfigurationTab() {
+  const { toast }  = useToast();
+  const [saving, setSaving]   = useState(false);
+  const [seeded, setSeeded]   = useState(false);
+  const [startTime, setStart] = useState("09:00");
+  const [endTime,   setEnd]   = useState("17:00");
+
+  const { data, loading, refetch } = useFetch(() => api.get("/company/settings"), []);
+  const company = data?.company;
+
+  if (company && !seeded) {
+    setStart(company.workStartTime ?? "09:00");
+    setEnd(company.workEndTime     ?? "17:00");
+    setSeeded(true);
+  }
+
+  function parseT(t) { const [h, m] = t.split(":").map(Number); return h + m / 60; }
+  const diff     = parseT(endTime) - parseT(startTime);
+  const isValid  = diff > 0;
+  const diffLabel = isValid ? (() => {
+    const h = Math.floor(diff), m = Math.round((diff % 1) * 60);
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  })() : null;
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!isValid) { toast({ title: "End time must be after start time", variant: "error" }); return; }
+    setSaving(true);
+    try {
+      await api.put("/company/settings", { workStartTime: startTime, workEndTime: endTime });
+      toast({ title: "Configuration saved", description: `Work hours: ${startTime} – ${endTime} (${diffLabel})`, variant: "success" });
+      refetch();
+    } catch (err) {
+      toast({ title: err.message, variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="space-y-3 max-w-md">{[...Array(3)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" />)}</div>;
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6 max-w-md">
+      {/* Company info */}
+      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Company</span>
+          <span className="font-medium text-foreground">{company?.name}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Company Code</span>
+          <span className="font-mono text-foreground">{company?.code}</span>
+        </div>
+      </div>
+
+      {/* Work hours */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Work Hours</h3>
+        <div className="rounded-xl border border-border bg-card px-4 py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <label htmlFor="cfgStart" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Time</label>
+              <input id="cfgStart" type="time" value={startTime} onChange={(e) => setStart(e.target.value)}
+                className="h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div className="grid gap-1.5">
+              <label htmlFor="cfgEnd" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End Time</label>
+              <input id="cfgEnd" type="time" value={endTime} onChange={(e) => setEnd(e.target.value)}
+                className="h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Standard Working Hours</p>
+              <p className="text-xs text-muted-foreground">Auto-computed · drives extra-hours in attendance</p>
+            </div>
+            <span className={cn("text-lg font-bold", isValid ? "text-primary" : "text-destructive")}>
+              {isValid ? diffLabel : "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving || !isValid}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+      >
+        {saving ? "Saving…" : "Save Configuration"}
+      </button>
+    </form>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { value: "dashboard",     label: "Dashboard" },
+  { value: "payrun",        label: "Payrun" },
+  { value: "configuration", label: "Configuration" },
+];
+
+export default function Payroll() {
+  const [tab, setTab] = useState("dashboard");
 
   return (
     <div className="space-y-6 animate-fade-up">
       <PageHeader title="Payroll" breadcrumbs={[{ label: "Payroll" }]} />
-
-      {loading && (
-        <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading dashboard…</div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Failed to load dashboard data.
-        </div>
-      )}
-
-      {!loading && !error && (
-        <>
-          {/* Warnings */}
-          {(summary.missingBank > 0 || summary.missingManager > 0) && (
-            <div className="space-y-2">
-              <WarningCard
-                count={summary.missingBank}
-                label="employee(s) without bank account"
-                linkTo={ROUTES.EMPLOYEES}
-              />
-              <WarningCard
-                count={summary.missingManager}
-                label="employee(s) without a manager assigned"
-                linkTo={ROUTES.EMPLOYEES}
-              />
-            </div>
-          )}
-
-          {/* Summary tiles */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <SummaryTile icon={Users}      label="Total Employees" value={summary.totalEmployees ?? 0} color="bg-primary"    />
-            <SummaryTile icon={Wallet}     label="Payslips Run"    value={recentPayslips.length}        color="bg-secondary"  />
-            <SummaryTile icon={TrendingUp} label="Annual Cost"     value={fmt(annualCost)}              color="bg-accent"     />
-            <SummaryTile icon={UserPlus}   label="New Joiners (YTD)" value={joiningByMonth.reduce((s, d) => s + d.count, 0)} color="bg-muted-foreground" />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Recent payslips */}
-            {canViewPayroll && (
-              <div className="rounded-xl border border-border bg-card p-5 space-y-1 lg:col-span-1">
-                <h3 className="font-semibold text-foreground mb-3">Recent Payslips</h3>
-                {recentPayslips.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No payslips yet.</p>
-                ) : (
-                  recentPayslips.slice(0, 8).map((p) => <PayslipRow key={p.id} payslip={p} />)
-                )}
-              </div>
-            )}
-
-            {/* Charts */}
-            <div className={`space-y-6 ${canViewPayroll && !isHR ? "lg:col-span-2" : "lg:col-span-3"}`}>
-              {/* Employer cost chart — Admin + Payroll Officer */}
-              {canViewPayroll && !isHR && (
-                <ChartCard
-                  title="Employer Cost"
-                  toggle={costView}
-                  onToggle={setCostView}
-                  options={[{ label: "Monthly", value: "monthly" }, { label: "Annual", value: "annual" }]}
-                >
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={costChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
-                      <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
-                      <RechartsTooltip
-                        formatter={(v) => [fmt(v), "Cost"]}
-                        contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                      />
-                      <Bar dataKey="amount" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-              )}
-
-              {/* Headcount / joining chart — all allowed roles */}
-              <ChartCard
-                title="New Joiners"
-                toggle={joiningView}
-                onToggle={setJoiningView}
-                options={[{ label: "Monthly", value: "monthly" }, { label: "YTD", value: "annual" }]}
-              >
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={joiningChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
-                    <RechartsTooltip
-                      formatter={(v) => [v, "Joiners"]}
-                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                    />
-                    <Bar dataKey="count" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            </div>
-          </div>
-        </>
-      )}
+      <div className="rounded-xl border border-border bg-card p-6">
+        <TabNav active={tab} onChange={setTab} tabs={TABS} />
+        {tab === "dashboard"     && <DashboardTab />}
+        {tab === "payrun"        && <PayrunTab />}
+        {tab === "configuration" && <ConfigurationTab />}
+      </div>
     </div>
   );
 }

@@ -7,7 +7,10 @@ export const listLeaveController = asyncHandler(async (req, res) => {
 });
 
 export const createLeaveController = asyncHandler(async (req, res) => {
-  const result = await createLeaveRequest({ companyId: req.user.companyId, userId: req.user.id }, req.body);
+  const result = await createLeaveRequest(
+    { companyId: req.user.companyId, userId: req.user.id, role: req.user.role },
+    req.body,
+  );
   return res.status(result.statusCode).json(result);
 });
 

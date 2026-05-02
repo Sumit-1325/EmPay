@@ -103,10 +103,10 @@ POST                  /api/attendance/check-in
 POST                  /api/attendance/check-out
 PUT                   /api/attendance/:id
 
-GET/POST              /api/leave
-PUT                   /api/leave/:id/approve
-PUT                   /api/leave/:id/reject
-DELETE                /api/leave/:id
+GET/POST              /api/leave                     ← EMPLOYEE sees own; ADMIN/HR see all
+PUT                   /api/leave/:id/approve         ← ADMIN, HR_OFFICER, PAYROLL_OFFICER
+PUT                   /api/leave/:id/reject          ← ADMIN, HR_OFFICER, PAYROLL_OFFICER
+DELETE                /api/leave/:id                 ← EMPLOYEE (own pending only); ADMIN/HR (any)
 
 GET                   /api/payroll/dashboard    ← ADMIN, PAYROLL_OFFICER, HR_OFFICER
 GET/POST              /api/payroll

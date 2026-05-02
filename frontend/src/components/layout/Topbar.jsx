@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sun, Moon, Menu, LogOut, User } from "lucide-react";
+import { Sun, Moon, Menu, LogOut, User, LogOut as LogOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/useTheme";
 import { useSidebar } from "@/hooks/useSidebar";
@@ -13,24 +13,26 @@ import { cn } from "@/lib/utils";
 
 // ── Check In / Out button + status dot ───────────────────────────────────────
 function CheckInOut() {
-  const { toast } = useToast();
-  const [record, setRecord]     = useState(null);  // today's attendance record
-  const [loading, setLoading]   = useState(false);
-  const [fetched, setFetched]   = useState(false);
+  const { user }                    = useAuth();
+  const { toast }                   = useToast();
+  const [record, setRecord]         = useState(null);
+  const [loading, setLoading]       = useState(false);
+  const [fetched, setFetched]       = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
+    if (!user?.id) return;
     api.get(`/attendance?date=${today}`)
       .then((res) => {
-        // For an employee, records array has their own record (or empty)
-        // For admin/hr, we only care about their own — find by current user via checkIn presence
         const records = res.data?.attendance ?? [];
-        setRecord(records[0] ?? null);
+        // find current user's own record regardless of role
+        const own = records.find((r) => (r.user?.id ?? r.userId) === user.id) ?? null;
+        setRecord(own);
       })
       .catch(() => {})
       .finally(() => setFetched(true));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isCheckedIn  = !!record?.checkIn;
   const isCheckedOut = !!record?.checkOut;
@@ -40,7 +42,7 @@ function CheckInOut() {
     try {
       const res = await api.post("/attendance/check-in", {});
       setRecord(res.data.attendance);
-      toast({ title: "Checked in successfully", variant: "success" });
+      toast({ title: "Checked in!", description: "Have a great day.", variant: "success" });
     } catch (err) {
       toast({ title: err.message || "Check-in failed", variant: "error" });
     } finally {
@@ -53,7 +55,7 @@ function CheckInOut() {
     try {
       const res = await api.post("/attendance/check-out", {});
       setRecord(res.data.attendance);
-      toast({ title: "Checked out successfully", variant: "success" });
+      toast({ title: "Checked out!", description: "See you tomorrow.", variant: "success" });
     } catch (err) {
       toast({ title: err.message || "Check-out failed", variant: "error" });
     } finally {
@@ -64,47 +66,52 @@ function CheckInOut() {
   if (!fetched) return null;
 
   const checkInTime = record?.checkIn
-    ? new Date(record.checkIn).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })
+    ? new Date(record.checkIn).toLocaleTimeString("en-IN", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata",
+      })
     : null;
 
-  return (
-    <div className="flex items-center gap-2">
-      {/* Status dot */}
-      <span
-        className={cn(
-          "h-2.5 w-2.5 rounded-full ring-2 ring-background transition-colors",
-          isCheckedIn && !isCheckedOut ? "bg-emerald-500" : "bg-rose-500"
-        )}
-        title={isCheckedIn ? "Checked in" : "Not checked in"}
-      />
+  // "Done for today"
+  if (isCheckedIn && isCheckedOut) {
+    return (
+      <div className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5">
+        <span className="h-2 w-2 rounded-full bg-rose-500" />
+        <span className="text-xs font-medium text-muted-foreground">Done for today</span>
+      </div>
+    );
+  }
 
-      {!isCheckedIn && (
-        <button
-          onClick={handleCheckIn}
-          disabled={loading}
-          className="hidden sm:flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-        >
-          Check In →
-        </button>
-      )}
-
-      {isCheckedIn && !isCheckedOut && (
-        <div className="hidden sm:flex items-center gap-2">
+  // Checked in — show "Since HH:MM" + Check Out button
+  if (isCheckedIn) {
+    return (
+      <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-muted-foreground">Since {checkInTime}</span>
-          <button
-            onClick={handleCheckOut}
-            disabled={loading}
-            className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-          >
-            Check Out →
-          </button>
         </div>
-      )}
+        <button
+          onClick={handleCheckOut}
+          disabled={loading}
+          aria-label="Check out"
+          className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-white hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm"
+        >
+          <LogOutIcon size={15} />
+        </button>
+      </div>
+    );
+  }
 
-      {isCheckedIn && isCheckedOut && (
-        <span className="hidden sm:block text-xs text-muted-foreground">Done for today</span>
-      )}
-    </div>
+  // Not checked in — show Check In button
+  return (
+    <button
+      onClick={handleCheckIn}
+      disabled={loading}
+      aria-label="Check in"
+      className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+    >
+      <span className="h-2 w-2 rounded-full bg-rose-400" />
+      Check In
+    </button>
   );
 }
 

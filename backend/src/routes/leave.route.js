@@ -23,7 +23,7 @@ const createValidators = [
 
 router.get(  "/",                listLeaveController);
 router.post( "/",                createValidators, validatorMiddleware, createLeaveController);
-router.put(  "/:id/:action",     requireRole("ADMIN", "PAYROLL_OFFICER"), approveLeaveController);
+router.put(  "/:id/:action",     requireRole("ADMIN", "HR_OFFICER", "PAYROLL_OFFICER"), approveLeaveController);
 router.delete("/:id",            deleteLeaveController);
 
 export default router;

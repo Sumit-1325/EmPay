@@ -230,6 +230,20 @@ pfEr   = basic × pfRate/100
 profTax = 200
 ```
 
+## Time Off Page — `pages/TimeOff.jsx`
+
+Role-split views:
+- **Employee**: Shows own leave requests + balance cards (Paid Time Off: 24 days, Sick Leave: 7 days, Unpaid: no limit). Balance computed from approved leaves in current year. "NEW" opens `RequestModal`.
+- **Admin/HR Officer**: Shows ALL employees' requests. "NEW" opens `AdminRequestForm` (employee dropdown). Can approve/reject pending requests (✓ / ✗ icon buttons).
+
+Leave types: `"Paid Time Off"` (isPaid: true), `"Sick Leave"` (isPaid: true), `"Unpaid Leave"` (isPaid: false).
+
+`POST /leave` body: `{ leaveType, startDate, endDate, isPaid, reason?, targetUserId? }` — `targetUserId` used by Admin/HR to create on behalf of another employee.
+
+`PUT /leave/:id/approve` and `PUT /leave/:id/reject` — allowed for ADMIN, HR_OFFICER, PAYROLL_OFFICER.
+
+Leave balance: hardcoded allocation (`Paid Time Off: 24, Sick Leave: 7`) minus sum of days in approved requests. No DB model for allocations — policy is fixed in frontend constants.
+
 ## Payroll Dashboard — `pages/Payroll.jsx`
 
 Role-gated sections:

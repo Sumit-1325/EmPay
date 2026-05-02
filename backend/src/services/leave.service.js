@@ -15,17 +15,26 @@ export const listLeaveRequests = async ({ companyId, userId, role }) => {
   return new apiResponse(200, "Leave requests fetched successfully", { requests, total: requests.length });
 };
 
-export const createLeaveRequest = async ({ companyId, userId }, data) => {
-  const { leaveType, startDate, endDate, reason, isPaid = true } = data;
+export const createLeaveRequest = async ({ companyId, userId, role }, data) => {
+  const { leaveType, startDate, endDate, reason, isPaid = true, targetUserId } = data;
 
   if (new Date(startDate) > new Date(endDate)) {
     throw new apiError(400, "Start date must be before or equal to end date");
   }
 
+  // Admin/HR can create leave on behalf of another employee
+  const forUserId = (targetUserId && role !== "EMPLOYEE") ? parseInt(targetUserId) : userId;
+
+  // Verify target employee belongs to same company
+  if (forUserId !== userId) {
+    const emp = await prisma.user.findFirst({ where: { id: forUserId, companyId } });
+    if (!emp) throw new apiError(404, "Employee not found");
+  }
+
   const request = await prisma.leaveRequest.create({
     data: {
       companyId,
-      userId,
+      userId:    forUserId,
       leaveType,
       startDate: new Date(startDate),
       endDate:   new Date(endDate),
@@ -33,6 +42,7 @@ export const createLeaveRequest = async ({ companyId, userId }, data) => {
       isPaid:    Boolean(isPaid),
       status:    "PENDING",
     },
+    include: { user: { select: { id: true, firstName: true, lastName: true, loginId: true } } },
   });
 
   return new apiResponse(201, "Leave request submitted successfully", { request });

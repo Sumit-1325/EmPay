@@ -56,7 +56,7 @@ function Field({ label, required, children, error }) {
   );
 }
 
-const INPUT_CLS = "h-9 w-full rounded-lg border border-border bg-muted/50 px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60";
+const INPUT_CLS = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-colors disabled:opacity-60";
 const SELECT_CLS = `${INPUT_CLS} cursor-pointer`;
 
 // ── Temp password reveal ──────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md animate-fade-up rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">Employee created</h3>
@@ -184,46 +184,40 @@ function CreateEmployeeModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg animate-fade-up rounded-2xl border border-border bg-card shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-base font-bold text-foreground">New Employee</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X size={18} />
-          </button>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+      <div className="w-full max-w-lg animate-fade-up rounded-2xl border border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+
+        {/* Gradient header */}
+        <div className="relative bg-gradient-to-r from-primary to-secondary px-6 py-5">
+          <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)"}} />
+          <div className="flex items-center justify-between relative">
+            <div>
+              <h2 className="text-base font-bold text-white">New Employee</h2>
+              <p className="text-xs text-white/70 mt-0.5">Fill in the details to add a new team member</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 px-6 py-5">
+        <form onSubmit={handleSubmit} noValidate className="px-6 py-5 space-y-4">
           {/* Name row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="First Name" required error={errors.firstName}>
-              <input
-                className={INPUT_CLS}
-                placeholder="Jane"
-                value={fields.firstName}
-                onChange={set("firstName")}
-              />
+              <input className={INPUT_CLS} placeholder="Jane" value={fields.firstName} onChange={set("firstName")} />
             </Field>
             <Field label="Last Name" required error={errors.lastName}>
-              <input
-                className={INPUT_CLS}
-                placeholder="Smith"
-                value={fields.lastName}
-                onChange={set("lastName")}
-              />
+              <input className={INPUT_CLS} placeholder="Smith" value={fields.lastName} onChange={set("lastName")} />
             </Field>
           </div>
 
           <Field label="Email" required error={errors.email}>
-            <input
-              type="email"
-              className={INPUT_CLS}
-              placeholder="jane@company.com"
-              value={fields.email}
-              onChange={set("email")}
-            />
+            <input type="email" className={INPUT_CLS} placeholder="jane@company.com" value={fields.email} onChange={set("email")} />
           </Field>
 
           <Field label="Role" error={errors.role}>
@@ -236,38 +230,21 @@ function CreateEmployeeModal({ onClose, onCreated }) {
             </select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Monthly Wage (₹)" error={errors.monthlyWage}>
-              <input
-                type="number"
-                min="0"
-                className={INPUT_CLS}
-                placeholder="50000"
-                value={fields.monthlyWage}
-                onChange={set("monthlyWage")}
-              />
+              <input type="number" min="0" className={INPUT_CLS} placeholder="50000" value={fields.monthlyWage} onChange={set("monthlyWage")} />
             </Field>
             <Field label="Joining Date" error={errors.joiningDate}>
-              <input
-                type="date"
-                className={INPUT_CLS}
-                value={fields.joiningDate}
-                onChange={set("joiningDate")}
-              />
+              <input type="date" className={INPUT_CLS} value={fields.joiningDate} onChange={set("joiningDate")} />
             </Field>
           </div>
 
           <Field label="PF Number" error={errors.pfNumber}>
-            <input
-              className={INPUT_CLS}
-              placeholder="Optional"
-              value={fields.pfNumber}
-              onChange={set("pfNumber")}
-            />
+            <input className={INPUT_CLS} placeholder="Optional" value={fields.pfNumber} onChange={set("pfNumber")} />
           </Field>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+          <div className="flex items-center justify-end gap-3 border-t border-border pt-4 mt-2">
             <Button
               type="button"
               variant="ghost"

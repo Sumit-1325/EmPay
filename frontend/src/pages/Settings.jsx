@@ -33,39 +33,46 @@ function ProfileTab({ user, updateUser }) {
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-5 max-w-lg">
-      <div className="flex items-center gap-4">
+    <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
+      {/* Avatar + name banner */}
+      <div className="flex items-center gap-5 rounded-xl border border-border bg-muted/20 px-5 py-4">
         <Avatar initials={getInitials(form.name || "U")} size="xl" />
         <div>
-          <p className="text-sm font-semibold text-foreground">{form.name || "Your Name"}</p>
-          <p className="text-xs text-muted-foreground">{form.email}</p>
+          <p className="text-base font-semibold text-foreground">{form.name || "Your Name"}</p>
+          <p className="text-sm text-muted-foreground">{form.email}</p>
         </div>
       </div>
 
-      {[
-        { key: "name",    label: "Full Name",  type: "text",  placeholder: "Jane Smith" },
-        { key: "email",   label: "Email",      type: "email", placeholder: "jane@acme.com", readOnly: true },
-        { key: "phone",   label: "Phone",      type: "tel",   placeholder: "+91 98765 43210" },
-        { key: "company", label: "Company",    type: "text",  placeholder: "Acme Corp" },
-        { key: "title",   label: "Job Title",  type: "text",  placeholder: "VP of Operations" },
-      ].map(({ key, label, type, placeholder, readOnly }) => (
-        <div key={key} className="grid gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
-          <input
-            type={type}
-            value={form[key]}
-            onChange={(e) => !readOnly && setForm((f) => ({ ...f, [key]: e.target.value }))}
-            placeholder={placeholder}
-            readOnly={readOnly}
-            className={cn(
-              "h-10 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
-              readOnly && "cursor-not-allowed opacity-60"
-            )}
-          />
+      {/* Form fields in a two-column grid */}
+      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { key: "name",    label: "Full Name",  type: "text",  placeholder: "Jane Smith",        colSpan: false },
+            { key: "phone",   label: "Phone",      type: "tel",   placeholder: "+91 98765 43210",   colSpan: false },
+            { key: "email",   label: "Email",      type: "email", placeholder: "jane@acme.com",     readOnly: true, colSpan: true },
+            { key: "company", label: "Company",    type: "text",  placeholder: "Acme Corp",         colSpan: false },
+            { key: "title",   label: "Job Title",  type: "text",  placeholder: "VP of Operations",  colSpan: false },
+          ].map(({ key, label, type, placeholder, readOnly, colSpan }) => (
+            <div key={key} className={cn("grid gap-1.5", colSpan && "col-span-2")}>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
+              <input
+                type={type}
+                value={form[key]}
+                onChange={(e) => !readOnly && setForm((f) => ({ ...f, [key]: e.target.value }))}
+                placeholder={placeholder}
+                readOnly={readOnly}
+                className={cn(
+                  "h-10 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+                  readOnly && "cursor-not-allowed opacity-60"
+                )}
+              />
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex justify-end">
         <Button type="submit" size="sm">
           {saved ? "Saved!" : "Save Changes"}
         </Button>
@@ -86,10 +93,10 @@ function PreferencesTab() {
   ];
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Appearance</h3>
-        <div className="flex gap-2">
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Appearance</h3>
+        <div className="flex gap-3">
           {themes.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
@@ -108,14 +115,14 @@ function PreferencesTab() {
         </div>
       </div>
 
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Notifications</h3>
+      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
         <div className="space-y-3">
           {[
             { key: "email", label: "Email Notifications", desc: "Receive updates via email" },
             { key: "slack", label: "Slack Notifications", desc: "Receive updates in Slack" },
           ].map(({ key, label, desc }) => (
-            <div key={key} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+            <div key={key} className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-foreground">{label}</p>
                 <p className="text-xs text-muted-foreground">{desc}</p>
@@ -149,23 +156,24 @@ function PreferencesTab() {
 
 function SecurityTab() {
   return (
-    <div className="space-y-4 max-w-lg">
-      <div className="rounded-xl border border-border bg-card px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Password</p>
-            <p className="text-xs text-muted-foreground">Last changed 30 days ago</p>
+    <div className="max-w-2xl mx-auto space-y-4">
+      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Login & Security</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Password</p>
+              <p className="text-xs text-muted-foreground">Last changed 30 days ago</p>
+            </div>
+            <Button variant="outline" size="sm">Change Password</Button>
           </div>
-          <Button variant="outline" size="sm">Change Password</Button>
-        </div>
-      </div>
-      <div className="rounded-xl border border-border bg-card px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
-            <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
+              <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
+            </div>
+            <Button variant="outline" size="sm">Enable 2FA</Button>
           </div>
-          <Button variant="outline" size="sm">Enable 2FA</Button>
         </div>
       </div>
     </div>
@@ -207,7 +215,7 @@ function UserSettingTab({ currentUserId }) {
 
   if (loading) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 max-w-4xl mx-auto">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="h-12 rounded-lg bg-muted/40 animate-pulse" />
         ))}
@@ -220,7 +228,7 @@ function UserSettingTab({ currentUserId }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-4xl mx-auto space-y-4">
       <p className="text-sm text-muted-foreground">
         Assign roles to control what each employee can access. Changes take effect on their next login.
       </p>
@@ -355,14 +363,14 @@ function CompanyTab() {
 
   if (loading) {
     return (
-      <div className="space-y-3 max-w-md">
+      <div className="max-w-2xl mx-auto space-y-3">
         {[...Array(3)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" />)}
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-md">
+    <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
       {/* Company info (read-only) */}
       <div className="rounded-xl border border-border bg-muted/20 px-4 py-4 space-y-2">
         <div className="flex justify-between text-sm">
@@ -428,9 +436,11 @@ function CompanyTab() {
         </div>
       </div>
 
-      <Button type="submit" size="sm" disabled={saving || isInvalid}>
-        {saving ? "Saving…" : "Save Changes"}
-      </Button>
+      <div className="flex justify-end">
+        <Button type="submit" size="sm" disabled={saving || isInvalid}>
+          {saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -447,7 +457,7 @@ export default function Settings() {
     { value: "security",     label: "Security",     icon: Shield, content: <SecurityTab /> },
     ...(isAdmin
       ? [
-          { value: "users",   label: "User Settings", icon: Users,     content: <UserSettingTab currentUserId={user?.id} /> },
+          { value: "users",   label: "User Settings", icon: Users,     labelClass: "text-[15px]", content: <UserSettingTab currentUserId={user?.id} /> },
           { value: "company", label: "Company",        icon: Building2, content: <CompanyTab /> },
         ]
       : []),
