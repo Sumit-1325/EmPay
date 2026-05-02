@@ -61,6 +61,7 @@ model User {
   joiningDate               DateTime  @default(now()) @map("joining_date")
   basicSalary               Float?    @map("basic_salary")
   pfNumber                  String?   @map("pf_number") @db.VarChar(50)
+  avatarUrl                 String?   @map("avatar_url")
   mustChangePassword        Boolean   @default(true) @map("must_change_password")
   refreshToken              String?   @map("refresh_token")
   forgotPasswordToken       String?   @map("forgot_password_token") @db.VarChar(255)
