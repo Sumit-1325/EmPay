@@ -37,10 +37,20 @@ model Company {
   name          String   @db.VarChar(255)
   code          String   @unique @db.VarChar(10)
   logoUrl       String?  @map("logo_url")
-  standardHours  Float    @default(8)       @map("standard_hours")   // auto-computed from workStartTime/workEndTime
+  standardHours  Float    @default(8)       @map("standard_hours")
   workStartTime  String   @default("09:00") @map("work_start_time") @db.VarChar(5)
   workEndTime    String   @default("17:00") @map("work_end_time")   @db.VarChar(5)
   createdAt      DateTime @default(now())   @map("created_at")
+
+  // Allowance percentages (applied to basic salary)
+  hraPercent               Float @default(50)    @map("hra_percent")
+  standardAllowancePercent Float @default(16.67) @map("standard_allowance_percent")
+  performanceBonusPercent  Float @default(8.33)  @map("performance_bonus_percent")
+  ltaPercent               Float @default(8.33)  @map("lta_percent")
+  fixedAllowancePercent    Float @default(16.67) @map("fixed_allowance_percent")
+
+  // Fixed monthly deductions
+  professionalTaxAmount Float @default(200) @map("professional_tax_amount")
 
   users              User[]
   attendance         Attendance[]
@@ -208,13 +218,37 @@ model Payslip {
   userId           Int       @map("user_id")
   month            Int
   year             Int
+
+  // Prorated salary components
   basicSalary      Float     @map("basic_salary")
-  totalWorkingDays Int       @map("total_working_days") // calendar working days in that month
-  payableDays      Float     @map("payable_days")       // days computed from attendance
-  deductions       Float     @default(0)
+  hra              Float     @default(0)
+  standardAllowance Float    @default(0) @map("standard_allowance")
+  performanceBonus Float     @default(0) @map("performance_bonus")
+  lta              Float     @default(0)
+  fixedAllowance   Float     @default(0) @map("fixed_allowance")
+  grossPay         Float     @map("gross_pay")
+
+  // Deductions
+  pfEmployee       Float     @default(0) @map("pf_employee")
+  pfEmployer       Float     @default(0) @map("pf_employer")
+  professionalTax  Float     @default(0) @map("professional_tax")
+  tds              Float     @default(0)
+  totalDeductions  Float     @default(0) @map("total_deductions")
   netPay           Float     @map("net_pay")
-  paidAt           DateTime? @map("paid_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
+
+  // Employer total cost
+  employerCost     Float     @default(0) @map("employer_cost")
+
+  // Attendance summary for the month
+  totalWorkingDays Int       @map("total_working_days")
+  payableDays      Float     @map("payable_days")
+  attendancePresent Int?     @map("attendance_present")
+  attendanceHalf   Int?      @map("attendance_half")
+  paidLeaveDays    Int?      @map("paid_leave_days")
+  unpaidLeaveDays  Int?      @map("unpaid_leave_days")
+
+  paidAt    DateTime? @map("paid_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])

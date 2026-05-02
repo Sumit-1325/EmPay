@@ -5,6 +5,8 @@ import { apiResponse } from "../utils/api-response.js";
 const COMPANY_SELECT = {
   id: true, name: true, code: true, logoUrl: true,
   standardHours: true, workStartTime: true, workEndTime: true, createdAt: true,
+  hraPercent: true, standardAllowancePercent: true, performanceBonusPercent: true,
+  ltaPercent: true, fixedAllowancePercent: true, professionalTaxAmount: true,
 };
 
 /** Parses "HH:MM" → decimal hours (e.g. "09:30" → 9.5). */
@@ -26,7 +28,11 @@ export const getCompanySettings = async (companyId) => {
 };
 
 export const updateCompanySettings = async (companyId, data) => {
-  const { workStartTime, workEndTime } = data;
+  const {
+    workStartTime, workEndTime,
+    hraPercent, standardAllowancePercent, performanceBonusPercent,
+    ltaPercent, fixedAllowancePercent, professionalTaxAmount,
+  } = data;
 
   if (workStartTime && !isValidTime(workStartTime))
     throw new apiError(400, "workStartTime must be in HH:MM format");
@@ -54,6 +60,12 @@ export const updateCompanySettings = async (companyId, data) => {
       ...(workStartTime && { workStartTime }),
       ...(workEndTime   && { workEndTime }),
       standardHours,
+      ...(hraPercent               != null && { hraPercent:               parseFloat(hraPercent) }),
+      ...(standardAllowancePercent != null && { standardAllowancePercent: parseFloat(standardAllowancePercent) }),
+      ...(performanceBonusPercent  != null && { performanceBonusPercent:  parseFloat(performanceBonusPercent) }),
+      ...(ltaPercent               != null && { ltaPercent:               parseFloat(ltaPercent) }),
+      ...(fixedAllowancePercent    != null && { fixedAllowancePercent:    parseFloat(fixedAllowancePercent) }),
+      ...(professionalTaxAmount    != null && { professionalTaxAmount:    parseFloat(professionalTaxAmount) }),
     },
     select: COMPANY_SELECT,
   });

@@ -110,3 +110,135 @@ FRONTEND_URL=http://localhost:5173
 - Never add business logic to controllers — keep it in services
 - Never add Prisma queries to helpers — keep them in services
 - Rate limiters live in `auth.route.js` — add new limiters there, not in `index.js`
+
+## Leave Module (`/api/leave` and `/api/leave/allocations`)
+
+### Leave Requests — `routes/leave.route.js`
+
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET | `/` | All | List leave requests (employees see own; managers see all) |
+| POST | `/` | All | Create leave request (+ optional `attachment` image via multer) |
+| PUT | `/:id/:action` | ADMIN, HR_OFFICER, PAYROLL_OFFICER | Approve or reject a request |
+| DELETE | `/:id` | Owner / ADMIN | Cancel/delete a request |
+
+**FormData + isPaid validator:** `isPaid` is sent as a string `"true"`/`"false"` via `FormData`. Validator uses `isBoolean({ strict: false })` + a `customSanitizer` to normalise it to an actual boolean before reaching the service.
+
+**Sick leave attachment:** Multer (`uploadDoc`) accepts `image/*` only (JPEG, PNG, GIF, WEBP — no PDF). File is uploaded to Cloudinary via `uploadLeaveAttachment()` using `resource_type: "auto"`. URL stored in `leave_requests.attachment_url`.
+
+### Leave Allocations — `routes/leave-allocation.route.js`
+
+Mounted at `/api/leave/allocations` in `index.js`.
+
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET | `/me` | All (authenticated) | Get current user's active allocations (within validity period) |
+| GET | `/` | ADMIN, HR_OFFICER | List all allocations for the company |
+| POST | `/` | ADMIN, HR_OFFICER | Create a new leave allocation |
+| DELETE | `/:id` | ADMIN, HR_OFFICER | Delete an allocation |
+
+**Service:** `services/leave-allocation.service.js`
+- `getMyAllocations(companyId, userId)` — filters by `startDate <= today` AND (`endDate >= today` OR `endDate IS NULL`)
+- `listAllocations(companyId)` — returns all, includes `user` and `creator` relations
+- `createAllocation(companyId, createdBy, data)` — validates employee belongs to company, days ≥ 0, startDate ≤ endDate
+- `deleteAllocation(companyId, allocationId)` — validates company scope before deletion
+
+## Prisma Schema — Key Models
+
+### LeaveAllocation
+```prisma
+model LeaveAllocation {
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  userId    Int       // employee receiving the allocation
+  leaveType String    @db.VarChar(50)
+  startDate DateTime  @db.Date
+  endDate   DateTime? @db.Date  // null = no expiry
+  days      Int
+  note      String?
+  createdBy Int
+  createdAt DateTime  @default(now())
+
+  company Company @relation(...)
+  user    User    @relation("UserAllocations", ...)
+  creator User    @relation("AllocationCreator", ...)
+}
+```
+Migration: `20260502190717_add_leave_allocation`
+
+### User relations added
+```prisma
+allocations   LeaveAllocation[] @relation("UserAllocations")
+createdAllocs LeaveAllocation[] @relation("AllocationCreator")
+```
+
+### Company relations added
+```prisma
+leaveAllocations LeaveAllocation[]
+```
+
+## File Upload Pattern
+
+Multer middleware lives in `middleware/multer.middleware.js`:
+- `uploadImage` — for avatar/profile images (JPEG, PNG, GIF, WEBP)
+- `uploadDoc` — for leave certificate attachments (images only: JPEG, PNG, GIF, WEBP)
+
+After multer saves to `/tmp`, upload to Cloudinary then **delete the local file** (`fs.unlinkSync`).
+
+```js
+// In route:
+router.post("/", uploadDoc.single("attachment"), validators, validatorMiddleware, controller);
+
+// In service — file path from multer:
+const attachmentUrl = req.file?.path
+  ? await uploadLeaveAttachment(req.file.path)
+  : null;
+```
+
+`uploadLeaveAttachment()` in `utils/cloudinary.js` uses `folder: "leave-attachments"` and `resource_type: "auto"`.
+
+## Attendance Work-Hours Gate
+
+The frontend (`Topbar.jsx`) reads `user.company.workStartTime` and `user.company.workEndTime` to gate check-in. The backend does **not** currently enforce this — the gate is frontend-only. If server-side enforcement is needed, add a time check in the attendance check-in service.
+
+## Payroll Module (`/api/payroll`)
+
+Migration: `20260502210155_add_payroll_details`
+
+### Routes — `routes/payroll.route.js`
+
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET | `/dashboard` | ADMIN, PAYROLL_OFFICER, HR_OFFICER | Summary + charts for payroll dashboard |
+| POST | `/run` | ADMIN, PAYROLL_OFFICER | Batch-run payroll for all employees for a given month/year |
+| GET | `/payruns` | ADMIN, PAYROLL_OFFICER | List months that have been run, with payslip counts + totals |
+| GET | `/` | All | List payslips (EMPLOYEE sees own only) |
+| GET | `/:id` | All (own for EMPLOYEE) | Full payslip with user + company detail |
+| GET | `/:id/pdf` | All (own for EMPLOYEE) | Print-ready HTML payslip — use `res.send(html)` |
+| PATCH | `/:id/pay` | ADMIN, PAYROLL_OFFICER | Mark payslip as paid (`paidAt = now()`) |
+
+### Service functions — `services/payroll.service.js`
+
+- `countWorkingDays(year, month)` — counts Mon–Fri days in month (exported, used by run + frontend preview)
+- `computePayableDays(userId, companyId, month, year)` — queries attendance + approved leaves, returns `{ payableDays, presentCount, halfCount, paidLeaveDays, unpaidLeaveDays }`
+- `computePayslipObject(employee, company, totalWorkingDays, attendanceSummary)` — pure function, returns all payslip fields without saving
+- `runPayroll(companyId, month, year)` — batch creates payslips for all employees; skips those without `basicSalary` or with existing payslip; returns results + errors array
+- `listPayruns(companyId)` — groupBy year/month, returns `{ label, payslipCount, totalNet, totalCost }`
+- `generatePayslipHtml(companyId, payslipId, userId, role)` — returns full HTML string for print/PDF
+
+### Payslip model fields (full breakdown stored in DB)
+
+Earnings: `basicSalary`, `hra`, `standardAllowance`, `performanceBonus`, `lta`, `fixedAllowance`, `grossPay`
+Deductions: `pfEmployee`, `pfEmployer`, `professionalTax`, `tds`, `totalDeductions`
+Summary: `netPay`, `employerCost`, `totalWorkingDays`, `payableDays`, `attendancePresent`, `attendanceHalf`, `paidLeaveDays`, `unpaidLeaveDays`
+
+### Company allowance config (editable via `PUT /api/company/settings`)
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `hraPercent` | 50 | % of basicProrated |
+| `standardAllowancePercent` | 16.67 | % of basicProrated |
+| `performanceBonusPercent` | 8.33 | % of basicProrated |
+| `ltaPercent` | 8.33 | % of basicProrated |
+| `fixedAllowancePercent` | 16.67 | % of basicProrated |
+| `professionalTaxAmount` | 200 | Fixed ₹ deduction per month |

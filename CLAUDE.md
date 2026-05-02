@@ -80,6 +80,33 @@ basicSalary = monthlyWage × 0.50  (stored in DB, auto-computed on create/update
 
 Only `monthlyWage` is entered by the admin. `basicSalary` is always `monthlyWage * 0.5` and is auto-synced in the service layer. Salary Info tab is visible to ADMIN and PAYROLL_OFFICER only.
 
+## Payroll Run Formula (server-side, prorated)
+
+All components are **prorated** by `payableDays / totalWorkingDays`. Percentages are stored per-company in `Company` model and default to the values below.
+
+```
+factor             = payableDays / totalWorkingDays
+basicProrated      = basicSalary × factor
+
+hra                = basicProrated × hraPercent/100               (default 50%)
+standardAllowance  = basicProrated × standardAllowancePercent/100  (default 16.67%)
+performanceBonus   = basicProrated × performanceBonusPercent/100   (default 8.33%)
+lta                = basicProrated × ltaPercent/100                (default 8.33%)
+fixedAllowance     = basicProrated × fixedAllowancePercent/100     (default 16.67%)
+
+grossPay           = basicProrated + hra + sa + pb + lta + fixed
+pfEmployee         = basicProrated × pfRate/100   (user.pfRate, default 12%)
+pfEmployer         = pfEmployee
+professionalTax    = company.professionalTaxAmount (default ₹200)
+totalDeductions    = pfEmployee + professionalTax + tds
+netPay             = grossPay − totalDeductions
+employerCost       = grossPay + pfEmployer
+```
+
+**Verification:** basicSalary=25000, full attendance (22/22 days), all defaults → Net = **₹46,800**
+
+`POST /api/payroll/run` processes all employees in the company for a given month. Skips employees with no `basicSalary`. Skips if payslip already exists. Returns per-employee results + errors list.
+
 ## API Routes Summary
 
 ```
@@ -109,9 +136,18 @@ PUT                   /api/leave/:id/reject          ← ADMIN, HR_OFFICER, PAYR
 DELETE                /api/leave/:id                 ← EMPLOYEE (own pending only); ADMIN/HR (any)
 
 GET                   /api/payroll/dashboard    ← ADMIN, PAYROLL_OFFICER, HR_OFFICER
-GET/POST              /api/payroll
-GET                   /api/payroll/:id
-PATCH                 /api/payroll/:id/pay
+POST                  /api/payroll/run          ← ADMIN, PAYROLL_OFFICER — batch payroll for month/year
+GET                   /api/payroll/payruns      ← ADMIN, PAYROLL_OFFICER — list months with payslip counts
+GET                   /api/payroll              ← list payslips (EMPLOYEE sees own only)
+GET                   /api/payroll/:id          ← full payslip with user + company detail
+GET                   /api/payroll/:id/pdf      ← print-ready HTML payslip (same role gate as /:id)
+PATCH                 /api/payroll/:id/pay      ← ADMIN, PAYROLL_OFFICER — mark paid
+
+GET/PUT               /api/company/settings     ← GET: all roles; PUT: ADMIN only
+                                                   PUT body accepts: workStartTime, workEndTime,
+                                                   hraPercent, standardAllowancePercent,
+                                                   performanceBonusPercent, ltaPercent,
+                                                   fixedAllowancePercent, professionalTaxAmount
 ```
 
 ## Environment Files
