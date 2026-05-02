@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/lib/generated/prisma"
@@ -36,43 +33,44 @@ enum LeaveStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Company {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(255)
-  code      String   @unique @db.VarChar(10)
-  logoUrl   String?  @map("logo_url")
-  createdAt DateTime @default(now()) @map("created_at")
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  code          String   @unique @db.VarChar(10)
+  logoUrl       String?  @map("logo_url")
+  standardHours Int      @default(8) @map("standard_hours") // used to compute extra hours
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  users        User[]
-  attendance   Attendance[]
+  users         User[]
+  attendance    Attendance[]
   leaveRequests LeaveRequest[]
-  payslips     Payslip[]
+  payslips      Payslip[]
 
   @@map("companies")
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  companyId    Int      @map("company_id")
-  firstName    String?  @db.VarChar(100) @map("first_name")
-  lastName     String?  @db.VarChar(100) @map("last_name")
-  name         String   @db.VarChar(255)
-  loginId      String   @map("login_id") @db.VarChar(20)
-  email        String   @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         UserRole
-  joiningDate  DateTime @default(now()) @map("joining_date")
-  basicSalary  Float?   @map("basic_salary")
-  pfNumber     String?  @map("pf_number") @db.VarChar(50)
-  mustChangePassword Boolean @default(true) @map("must_change_password")
-  refreshToken String?  @map("refresh_token")
+  id                        Int       @id @default(autoincrement())
+  companyId                 Int       @map("company_id")
+  firstName                 String?   @db.VarChar(100) @map("first_name")
+  lastName                  String?   @db.VarChar(100) @map("last_name")
+  name                      String    @db.VarChar(255)
+  loginId                   String    @map("login_id") @db.VarChar(20)
+  email                     String    @db.VarChar(255)
+  passwordHash              String    @map("password_hash") @db.VarChar(255)
+  role                      UserRole
+  joiningDate               DateTime  @default(now()) @map("joining_date")
+  basicSalary               Float?    @map("basic_salary")
+  pfNumber                  String?   @map("pf_number") @db.VarChar(50)
+  mustChangePassword        Boolean   @default(true) @map("must_change_password")
+  refreshToken              String?   @map("refresh_token")
   forgotPasswordToken       String?   @map("forgot_password_token") @db.VarChar(255)
   forgotPasswordTokenExpiry DateTime? @map("forgot_password_token_expiry")
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt                 DateTime  @default(now()) @map("created_at")
 
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  attendance   Attendance[]
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attendance    Attendance[]
   leaveRequests LeaveRequest[]
-  payslips     Payslip[]
+  payslips      Payslip[]
 
   @@unique([companyId, loginId])
   @@unique([companyId, email])
@@ -82,14 +80,17 @@ model User {
 }
 
 model Attendance {
-  id        Int              @id @default(autoincrement())
-  companyId Int              @map("company_id")
-  userId    Int              @map("user_id")
-  date      DateTime         @db.Date
-  checkIn   DateTime?        @map("check_in")
-  checkOut  DateTime?        @map("check_out")
-  status    AttendanceStatus @default(PRESENT)
-  createdAt DateTime         @default(now()) @map("created_at")
+  id         Int              @id @default(autoincrement())
+  companyId  Int              @map("company_id")
+  userId     Int              @map("user_id")
+  date       DateTime         @db.Date
+  checkIn    DateTime?        @map("check_in")
+  checkOut   DateTime?        @map("check_out")
+  // computed and stored at checkout so list queries don't re-calculate
+  workHours  Float?           @map("work_hours")
+  extraHours Float?           @map("extra_hours")
+  status     AttendanceStatus @default(PRESENT)
+  createdAt  DateTime         @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -108,6 +109,7 @@ model LeaveRequest {
   endDate    DateTime    @map("end_date") @db.Date
   reason     String?
   status     LeaveStatus @default(PENDING)
+  isPaid     Boolean     @default(true) @map("is_paid") // unpaid leave reduces payable days
   approvedBy Int?        @map("approved_by")
   createdAt  DateTime    @default(now()) @map("created_at")
 
@@ -119,16 +121,18 @@ model LeaveRequest {
 }
 
 model Payslip {
-  id          Int       @id @default(autoincrement())
-  companyId   Int       @map("company_id")
-  userId      Int       @map("user_id")
-  month       Int
-  year        Int
-  basicSalary Float     @map("basic_salary")
-  deductions  Float     @default(0)
-  netPay      Float     @map("net_pay")
-  paidAt      DateTime? @map("paid_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id               Int       @id @default(autoincrement())
+  companyId        Int       @map("company_id")
+  userId           Int       @map("user_id")
+  month            Int
+  year             Int
+  basicSalary      Float     @map("basic_salary")
+  totalWorkingDays Int       @map("total_working_days") // calendar working days in that month
+  payableDays      Float     @map("payable_days")       // days computed from attendance
+  deductions       Float     @default(0)
+  netPay           Float     @map("net_pay")
+  paidAt           DateTime? @map("paid_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])
