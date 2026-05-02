@@ -17,6 +17,7 @@ export async function generateLoginId(tx, { companyId, companyCode, firstName, l
       },
     },
   });
+}
 
   const code   = companyCode.toUpperCase().slice(0, 4);
   const first2 = (firstName || "XX").slice(0, 2).toUpperCase();

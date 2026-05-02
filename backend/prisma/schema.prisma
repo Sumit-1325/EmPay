@@ -62,6 +62,15 @@ model User {
   basicSalary               Float?    @map("basic_salary")
   pfNumber                  String?   @map("pf_number") @db.VarChar(50)
   avatarUrl                 String?   @map("avatar_url")
+  mobile                    String?   @db.VarChar(20)
+  location                  String?   @db.VarChar(100)
+  about                     String?   @db.Text
+  jobPassion                String?   @db.Text @map("job_passion")
+  interests                 String?   @db.Text
+  monthlyWage               Float?    @map("monthly_wage")
+  pfRate                    Float     @default(12) @map("pf_rate")
+  workingDaysPerWeek        Int       @default(5) @map("working_days_per_week")
+  breakTimeHours            Float     @default(1) @map("break_time_hours")
   mustChangePassword        Boolean   @default(true) @map("must_change_password")
   refreshToken              String?   @map("refresh_token")
   forgotPasswordToken       String?   @map("forgot_password_token") @db.VarChar(255)
@@ -72,12 +81,38 @@ model User {
   attendance    Attendance[]
   leaveRequests LeaveRequest[]
   payslips      Payslip[]
+  skills        Skill[]
+  certifications Certification[]
 
   @@unique([companyId, loginId])
   @@unique([companyId, email])
   @@index([email])
   @@index([loginId])
   @@map("users")
+}
+
+model Skill {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("skills")
+}
+
+model Certification {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  name       String    @db.VarChar(200)
+  issuedBy   String?   @db.VarChar(200) @map("issued_by")
+  issuedDate DateTime? @db.Date @map("issued_date")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
 }
 
 model Attendance {

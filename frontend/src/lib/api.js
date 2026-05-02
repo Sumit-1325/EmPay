@@ -32,8 +32,10 @@ async function refreshAccessToken() {
 
 async function request(path, options = {}) {
   const token = getToken();
+  const isFormData = options.body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    // Don't set Content-Type for FormData — browser sets it with the boundary
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -99,9 +101,15 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  get:    (path)       => request(path, { method: "GET" }),
-  post:   (path, body) => request(path, { method: "POST",   body: JSON.stringify(body) }),
-  put:    (path, body) => request(path, { method: "PUT",    body: JSON.stringify(body) }),
-  patch:  (path, body) => request(path, { method: "PATCH",  body: JSON.stringify(body) }),
-  delete: (path)       => request(path, { method: "DELETE" }),
+  get:    (path)              => request(path, { method: "GET" }),
+  post:   (path, body)        => request(path, { method: "POST",   body: JSON.stringify(body) }),
+  put:    (path, body)        => request(path, { method: "PUT",    body: JSON.stringify(body) }),
+  patch:  (path, body, opts)  => {
+    // Allow FormData uploads — skip JSON serialization and Content-Type override
+    if (body instanceof FormData) {
+      return request(path, { method: "PATCH", body, headers: opts?.headers ?? {} });
+    }
+    return request(path, { method: "PATCH", body: JSON.stringify(body) });
+  },
+  delete: (path)              => request(path, { method: "DELETE" }),
 };

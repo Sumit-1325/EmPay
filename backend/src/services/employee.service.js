@@ -26,7 +26,11 @@ export const listEmployees = async (companyId) => {
 export const getEmployee = async (companyId, employeeId) => {
   const user = await prisma.user.findFirst({
     where:   { id: employeeId, companyId },
-    include: { company: { select: COMPANY_SELECT } },
+    include: {
+      company:        { select: COMPANY_SELECT },
+      skills:         { orderBy: { createdAt: "asc" } },
+      certifications: { orderBy: { createdAt: "asc" } },
+    },
   });
 
   if (!user) throw new apiError(404, "Employee not found");
@@ -35,7 +39,8 @@ export const getEmployee = async (companyId, employeeId) => {
 };
 
 export const createEmployee = async (companyId, data) => {
-  const { firstName, lastName, email, role, joiningDate, basicSalary, pfNumber } = data;
+  const { firstName, lastName, email, role, joiningDate, monthlyWage, pfNumber } = data;
+  const basicSalary = monthlyWage != null ? monthlyWage * 0.5 : null;
 
   const joining   = joiningDate ? new Date(joiningDate) : new Date();
   const company   = await prisma.company.findUnique({ where: { id: companyId } });
@@ -67,7 +72,8 @@ export const createEmployee = async (companyId, data) => {
         passwordHash,
         role:               role || "EMPLOYEE",
         joiningDate:        joining,
-        basicSalary:        basicSalary ?? null,
+        monthlyWage:        monthlyWage ?? null,
+        basicSalary:        basicSalary,          // auto-computed: 50% of monthlyWage
         pfNumber:           pfNumber    ?? null,
         mustChangePassword: true,
       },
@@ -111,22 +117,39 @@ export const updateEmployee = async (companyId, employeeId, data) => {
   const existing = await prisma.user.findFirst({ where: { id: employeeId, companyId } });
   if (!existing) throw new apiError(404, "Employee not found");
 
-  const { firstName, lastName, role, basicSalary, pfNumber, joiningDate } = data;
+  const {
+    firstName, lastName, role, basicSalary, pfNumber, joiningDate,
+    mobile, location, about, jobPassion, interests,
+    monthlyWage, pfRate, workingDaysPerWeek, breakTimeHours,
+  } = data;
 
   const updated = await prisma.user.update({
     where: { id: employeeId },
     data: {
       ...(firstName    != null && { firstName: firstName.trim() }),
       ...(lastName     != null && { lastName:  lastName.trim()  }),
-      ...(firstName != null || lastName != null) && {
+      ...((firstName != null || lastName != null) && {
         name: `${(firstName ?? existing.firstName ?? "").trim()} ${(lastName ?? existing.lastName ?? "").trim()}`.trim(),
-      },
-      ...(role        != null && { role }),
-      ...(basicSalary != null && { basicSalary }),
-      ...(pfNumber    != null && { pfNumber }),
-      ...(joiningDate != null && { joiningDate: new Date(joiningDate) }),
+      }),
+      ...(role               != null && { role }),
+      ...(basicSalary        != null && { basicSalary }),
+      ...(pfNumber           != null && { pfNumber }),
+      ...(joiningDate        != null && { joiningDate: new Date(joiningDate) }),
+      ...(mobile             != null && { mobile: mobile.trim() }),
+      ...(location           != null && { location: location.trim() }),
+      ...(about              != null && { about }),
+      ...(jobPassion         != null && { jobPassion }),
+      ...(interests          != null && { interests }),
+      ...(monthlyWage        != null && { monthlyWage, basicSalary: monthlyWage * 0.5 }),
+      ...(pfRate             != null && { pfRate }),
+      ...(workingDaysPerWeek != null && { workingDaysPerWeek }),
+      ...(breakTimeHours     != null && { breakTimeHours }),
     },
-    include: { company: { select: COMPANY_SELECT } },
+    include: {
+      company:        { select: COMPANY_SELECT },
+      skills:         { orderBy: { createdAt: "asc" } },
+      certifications: { orderBy: { createdAt: "asc" } },
+    },
   });
 
   return new apiResponse(200, "Employee updated successfully", { employee: formatUser(updated) });
@@ -153,6 +176,51 @@ export const updateEmployeeAvatar = async (companyId, employeeId, localFilePath)
   });
 
   return new apiResponse(200, "Avatar updated successfully", { employee: formatUser(updated) });
+};
+
+export const addSkill = async (companyId, employeeId, name) => {
+  const employee = await prisma.user.findFirst({ where: { id: employeeId, companyId } });
+  if (!employee) throw new apiError(404, "Employee not found");
+  if (!name?.trim()) throw new apiError(400, "Skill name is required");
+
+  const skill = await prisma.skill.create({ data: { userId: employeeId, name: name.trim() } });
+  return new apiResponse(201, "Skill added", { skill });
+};
+
+export const deleteSkill = async (companyId, employeeId, skillId) => {
+  const skill = await prisma.skill.findFirst({
+    where: { id: skillId, userId: employeeId, user: { companyId } },
+  });
+  if (!skill) throw new apiError(404, "Skill not found");
+
+  await prisma.skill.delete({ where: { id: skillId } });
+  return new apiResponse(200, "Skill removed", true);
+};
+
+export const addCertification = async (companyId, employeeId, { name, issuedBy, issuedDate }) => {
+  const employee = await prisma.user.findFirst({ where: { id: employeeId, companyId } });
+  if (!employee) throw new apiError(404, "Employee not found");
+  if (!name?.trim()) throw new apiError(400, "Certification name is required");
+
+  const cert = await prisma.certification.create({
+    data: {
+      userId:    employeeId,
+      name:      name.trim(),
+      issuedBy:  issuedBy?.trim()  ?? null,
+      issuedDate: issuedDate ? new Date(issuedDate) : null,
+    },
+  });
+  return new apiResponse(201, "Certification added", { certification: cert });
+};
+
+export const deleteCertification = async (companyId, employeeId, certId) => {
+  const cert = await prisma.certification.findFirst({
+    where: { id: certId, userId: employeeId, user: { companyId } },
+  });
+  if (!cert) throw new apiError(404, "Certification not found");
+
+  await prisma.certification.delete({ where: { id: certId } });
+  return new apiResponse(200, "Certification removed", true);
 };
 
 export const deleteEmployee = async (companyId, employeeId, requesterId) => {

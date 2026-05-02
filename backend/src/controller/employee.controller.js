@@ -6,6 +6,10 @@ import {
   updateEmployee,
   deleteEmployee,
   updateEmployeeAvatar,
+  addSkill,
+  deleteSkill,
+  addCertification,
+  deleteCertification,
 } from "../services/employee.service.js";
 
 export const listEmployeesController = asyncHandler(async (req, res) => {
@@ -39,5 +43,25 @@ export const uploadAvatarController = asyncHandler(async (req, res) => {
     parseInt(req.params.id),
     req.file?.path,
   );
+  return res.status(result.statusCode).json(result);
+});
+
+export const addSkillController = asyncHandler(async (req, res) => {
+  const result = await addSkill(req.user.companyId, parseInt(req.params.id), req.body.name);
+  return res.status(result.statusCode).json(result);
+});
+
+export const deleteSkillController = asyncHandler(async (req, res) => {
+  const result = await deleteSkill(req.user.companyId, parseInt(req.params.id), parseInt(req.params.skillId));
+  return res.status(result.statusCode).json(result);
+});
+
+export const addCertificationController = asyncHandler(async (req, res) => {
+  const result = await addCertification(req.user.companyId, parseInt(req.params.id), req.body);
+  return res.status(result.statusCode).json(result);
+});
+
+export const deleteCertificationController = asyncHandler(async (req, res) => {
+  const result = await deleteCertification(req.user.companyId, parseInt(req.params.id), parseInt(req.params.certId));
   return res.status(result.statusCode).json(result);
 });

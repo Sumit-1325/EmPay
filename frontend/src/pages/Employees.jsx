@@ -126,7 +126,7 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
 // ── Create employee modal ─────────────────────────────────────────────────────
 const INITIAL = {
   firstName: "", lastName: "", email: "",
-  role: "EMPLOYEE", basicSalary: "", joiningDate: "", pfNumber: "",
+  role: "EMPLOYEE", monthlyWage: "", joiningDate: "", pfNumber: "",
 };
 
 function CreateEmployeeModal({ onClose, onCreated }) {
@@ -148,7 +148,7 @@ function CreateEmployeeModal({ onClose, onCreated }) {
     if (!fields.lastName.trim())  errs.lastName  = "Last name is required";
     if (!fields.email.trim())     errs.email     = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) errs.email = "Enter a valid email";
-    if (fields.basicSalary && isNaN(Number(fields.basicSalary))) errs.basicSalary = "Must be a number";
+    if (fields.monthlyWage && isNaN(Number(fields.monthlyWage))) errs.monthlyWage = "Must be a number";
     return errs;
   }
 
@@ -164,7 +164,7 @@ function CreateEmployeeModal({ onClose, onCreated }) {
         lastName:  fields.lastName.trim(),
         email:     fields.email.trim().toLowerCase(),
         role:      fields.role,
-        ...(fields.basicSalary && { basicSalary: parseFloat(fields.basicSalary) }),
+        ...(fields.monthlyWage && { monthlyWage: parseFloat(fields.monthlyWage) }),
         ...(fields.joiningDate  && { joiningDate: fields.joiningDate }),
         ...(fields.pfNumber     && { pfNumber: fields.pfNumber.trim() }),
       };
@@ -237,14 +237,14 @@ function CreateEmployeeModal({ onClose, onCreated }) {
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Basic Salary (₹)" error={errors.basicSalary}>
+            <Field label="Monthly Wage (₹)" error={errors.monthlyWage}>
               <input
                 type="number"
                 min="0"
                 className={INPUT_CLS}
                 placeholder="50000"
-                value={fields.basicSalary}
-                onChange={set("basicSalary")}
+                value={fields.monthlyWage}
+                onChange={set("monthlyWage")}
               />
             </Field>
             <Field label="Joining Date" error={errors.joiningDate}>

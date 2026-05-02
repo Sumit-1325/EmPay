@@ -39,16 +39,16 @@ const forgotPasswordLimiter = rateLimit({
 });
 
 // Public routes
-router.post("/register",       registerValidators(),  validatorMiddleware, register);
-router.post("/login",          loginLimiter,          loginValidators(),          validatorMiddleware, login);
-router.post("/forgot-password",forgotPasswordLimiter, forgotPasswordValidators(), validatorMiddleware, forgotPasswordController);
-router.post("/reset-password",                        resetPasswordValidators(),  validatorMiddleware, resetPasswordController);
-router.post("/reset-password/:token",                 resetPasswordValidators(),  validatorMiddleware, resetPasswordController);
-router.post("/refresh-token",                                                                          refreshTokenController);
+router.post("/register", registerValidators(), validatorMiddleware, register);
+router.post("/login", loginLimiter, loginValidators(), validatorMiddleware, login);
+router.post("/forgot-password", forgotPasswordLimiter, forgotPasswordValidators(), validatorMiddleware, forgotPasswordController);
+router.post("/reset-password", resetPasswordValidators(), validatorMiddleware, resetPasswordController);
+router.post("/reset-password/:token", resetPasswordValidators(), validatorMiddleware, resetPasswordController);
+router.post("/refresh-token", refreshTokenController);
 
 // Protected — exempt from mustChangePasswordGuard
-router.post("/logout",           verifyJWT, logout);
-router.get( "/me",               verifyJWT, getCurrentUserController);
-router.put( "/change-password",  verifyJWT, changePasswordValidators(), validatorMiddleware, changePasswordController);
+router.post("/logout", verifyJWT, logout);
+router.get("/me", verifyJWT, getCurrentUserController);
+router.put("/change-password", verifyJWT, changePasswordValidators(), validatorMiddleware, changePasswordController);
 
 export default router;
