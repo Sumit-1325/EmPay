@@ -111,7 +111,8 @@ export const generateSalaryStatementReport = async (companyId, employeeId, year)
   const companyName = employee.company?.name ?? "—";
   const logoUrl     = employee.company?.logoUrl ?? null;
   const empName     = [employee.firstName, employee.lastName].filter(Boolean).join(" ") || employee.loginId;
-  const designation = employee.jobTitle ?? "—";
+  const ROLE_LABEL = { ADMIN: "Admin", HR_OFFICER: "HR Officer", PAYROLL_OFFICER: "Payroll Officer", EMPLOYEE: "Employee" };
+  const designation = ROLE_LABEL[employee.role] ?? employee.role ?? "—";
 
   const noData = payslips.length === 0;
 
