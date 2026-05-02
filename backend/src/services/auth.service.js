@@ -247,6 +247,26 @@ export const changePassword = async (userId, oldPassword, newPassword) => {
 
   const { accessToken, refreshToken } = await issueTokensForUser({ ...user, passwordHash });
 
+  // Confirmation email — fire and forget
+  sendEmail({
+    to: user.email,
+    subject: "Your EmPay password has been changed",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#6366f1">Password changed successfully</h2>
+        <p>Hi ${user.firstName ?? user.name},</p>
+        <p>Your EmPay HRMS password was just changed. You can now log in with your new password.</p>
+        <table style="border-collapse:collapse;width:100%;margin:16px 0">
+          <tr>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Login ID</td>
+            <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${user.loginId}</td>
+          </tr>
+        </table>
+        <p style="color:#6b7280;font-size:13px">If you did not make this change, contact your administrator immediately.</p>
+      </div>
+    `,
+  }).catch(() => {});
+
   return new apiResponse(200, "Password changed successfully", {
     user: formatUser({ ...user, mustChangePassword: false }),
     accessToken,

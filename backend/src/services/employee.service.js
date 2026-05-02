@@ -6,6 +6,7 @@ import { formatUser } from "../helpers/formatters.js";
 import { generateTempPassword } from "../helpers/password-helpers.js";
 import { generateLoginId } from "./loginIdService.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { sendEmail } from "../utils/mail.util.js";
 
 const COMPANY_SELECT = { id: true, name: true, code: true };
 
@@ -43,6 +44,9 @@ export const createEmployee = async (companyId, data) => {
   const tempPassword = generateTempPassword();
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 
+  const emailExists = await prisma.user.findFirst({ where: { companyId, email: email.trim().toLowerCase() } });
+  if (emailExists) throw new apiError(409, "An employee with this email already exists in your company");
+
   const employee = await prisma.$transaction(async (tx) => {
     const loginId = await generateLoginId(tx, {
       companyId,
@@ -70,6 +74,31 @@ export const createEmployee = async (companyId, data) => {
       include: { company: { select: COMPANY_SELECT } },
     });
   });
+
+  // Send welcome email — fire and forget, don't block response on failure
+  sendEmail({
+    to: employee.email,
+    subject: `Welcome to ${company.name} — Your EmPay Login Credentials`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#6366f1">Welcome to ${company.name}!</h2>
+        <p>Your HRMS account has been created. Use the credentials below to log in.</p>
+        <table style="border-collapse:collapse;width:100%;margin:16px 0">
+          <tr>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Login ID</td>
+            <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${formatUser(employee).loginId}</td>
+          </tr>
+          <tr><td colspan="2" style="height:8px"></td></tr>
+          <tr>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Password</td>
+            <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${tempPassword}</td>
+          </tr>
+        </table>
+        <p style="color:#ef4444;font-size:13px">⚠️ You will be asked to change your password on first login.</p>
+        <p style="font-size:13px;color:#6b7280">Login at: <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a></p>
+      </div>
+    `,
+  }).catch(() => {}); // email failure must not block employee creation
 
   return new apiResponse(201, "Employee created successfully", {
     employee:    formatUser(employee),

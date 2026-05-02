@@ -1,19 +1,20 @@
 import { NavLink } from "react-router-dom";
 import {
   Users, CalendarCheck, CalendarOff,
-  Banknote, BarChart2, Settings, ChevronLeft, ChevronRight,
+  Banknote, BarChart2, Settings, ChevronLeft, ChevronRight, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/hooks/useSidebar";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants/routes";
+import { ROUTE_ACCESS } from "@/constants/roles";
 
 const NAV_ITEMS = [
-  { to: ROUTES.EMPLOYEES,  icon: Users,          label: "Employees"  },
-  { to: ROUTES.ATTENDANCE, icon: CalendarCheck,  label: "Attendance" },
-  { to: ROUTES.TIME_OFF,   icon: CalendarOff,    label: "Time Off"   },
-  { to: ROUTES.PAYROLL,    icon: Banknote,        label: "Payroll"    },
-  { to: ROUTES.REPORTS,    icon: BarChart2,       label: "Reports"    },
+  { to: ROUTES.EMPLOYEES,  icon: Users,         label: "Employees",  access: ROUTE_ACCESS.EMPLOYEES  },
+  { to: ROUTES.ATTENDANCE, icon: CalendarCheck, label: "Attendance", access: ROUTE_ACCESS.ATTENDANCE },
+  { to: ROUTES.TIME_OFF,   icon: CalendarOff,   label: "Time Off",   access: ROUTE_ACCESS.TIME_OFF   },
+  { to: ROUTES.PAYROLL,    icon: Banknote,      label: "Payroll",    access: ROUTE_ACCESS.PAYROLL    },
+  { to: ROUTES.REPORTS,    icon: BarChart2,     label: "Reports",    access: ROUTE_ACCESS.REPORTS    },
 ];
 
 export function Sidebar() {
@@ -46,24 +47,44 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-ring",
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )
-            }
-            title={!isOpen ? label : undefined}
-          >
-            <Icon size={18} className="shrink-0" />
-            {isOpen && <span className="animate-fade-in truncate">{label}</span>}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map(({ to, icon: Icon, label, access }) => {
+          const allowed = access.includes(user?.role);
+          if (!allowed) {
+            return (
+              <div
+                key={to}
+                title={isOpen ? "You don't have access to this section" : label + " (restricted)"}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-not-allowed opacity-40 select-none"
+              >
+                <Icon size={18} className="shrink-0" />
+                {isOpen && (
+                  <span className="animate-fade-in flex flex-1 items-center justify-between truncate">
+                    {label}
+                    <Lock size={12} className="ml-1 shrink-0" />
+                  </span>
+                )}
+              </div>
+            );
+          }
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-ring",
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )
+              }
+              title={!isOpen ? label : undefined}
+            >
+              <Icon size={18} className="shrink-0" />
+              {isOpen && <span className="animate-fade-in truncate">{label}</span>}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Settings + collapse toggle */}

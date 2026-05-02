@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
-import { Lock, ShieldAlert, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
+import { Lock, Hash, ShieldAlert, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
 import { AUTH_FEATURES } from "@/constants/authFeatures";
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { api } from "@/lib/api";
 import { getPasswordHints } from "@/lib/validators";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,8 @@ const INITIAL = { oldPassword: "", newPassword: "", confirmPassword: "" };
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+  const { toast } = useToast();
 
   const [fields, setFields]           = useState(INITIAL);
   const [errors, setErrors]           = useState({});
@@ -57,6 +59,11 @@ export default function ChangePasswordPage() {
         newPassword: fields.newPassword,
       });
       login(res.data.user, res.data.accessToken, res.data.refreshToken);
+      toast({
+        title: "Password updated",
+        description: `Your login ID and confirmation have been sent to ${res.data.user?.email ?? "your email"}.`,
+        variant: "success",
+      });
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch (err) {
       if (err.errors?.length) {
@@ -103,6 +110,19 @@ export default function ChangePasswordPage() {
               {serverError}
             </div>
           )}
+
+          {/* Login ID — read-only, auto-populated */}
+          <AuthField
+            id="loginId"
+            name="loginId"
+            type="text"
+            label="Login ID"
+            icon={Hash}
+            value={user?.loginId ?? ""}
+            readOnly
+            disabled
+            animationClass="animate-fade-up delay-0"
+          />
 
           <AuthField
             id="oldPassword"

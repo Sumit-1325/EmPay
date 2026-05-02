@@ -15,6 +15,7 @@ export function AuthField({
   onChange,
   error,
   required = false,
+  disabled = false,
   animationClass = "",
 }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -47,15 +48,17 @@ export function AuthField({
           type={inputType}
           placeholder={placeholder}
           required={required}
+          disabled={disabled}
           value={value}
-          onChange={onChange}
+          onChange={onChange ?? (() => {})}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
           className={cn(
             "auth-input-focus h-11 rounded-xl border-white/[0.08] bg-white/[0.04] text-sm text-white placeholder:text-white/25 hover:border-white/[0.15] hover:bg-white/[0.06]",
             Icon ? "pl-10" : "pl-4",
             isPassword ? "pr-10" : "pr-4",
-            error && "border-destructive/50 focus-visible:ring-destructive/30"
+            error && "border-destructive/50 focus-visible:ring-destructive/30",
+            disabled && "opacity-50 cursor-not-allowed hover:border-white/[0.08] hover:bg-white/[0.04]"
           )}
         />
         {isPassword && (
