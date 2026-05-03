@@ -923,8 +923,8 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
             </div>
           </div>
 
-          {/* Admin-only fields */}
-          {isAdmin && (
+          {/* Admin-only fields — Role, Joining Date, Manager never shown when editing own profile */}
+          {isAdmin && Number(currentUserId) !== Number(employee.id) && (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1257,7 +1257,7 @@ export default function EmployeeDetail() {
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => setEmployee(updated)}
           currentUserId={user?.id}
-          isAdmin={(user?.role === "ADMIN" || user?.role === "HR_OFFICER") && user?.id !== employee?.id}
+          isAdmin={(user?.role === "ADMIN" || user?.role === "HR_OFFICER") && Number(user?.id) !== Number(employee?.id)}
         />
       )}
     </div>
