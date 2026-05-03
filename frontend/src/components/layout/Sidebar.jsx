@@ -31,16 +31,22 @@ export function Sidebar() {
     >
       {/* Company branding */}
       <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary to-secondary text-sm font-bold text-white">
-          {user?.company?.code?.slice(0, 1) ?? "E"}
+        <div className="h-8 w-8 shrink-0 rounded-lg overflow-hidden">
+          {user?.companyLogoUrl ? (
+            <img src={user.companyLogoUrl} alt={user.companyName} className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary to-secondary text-sm font-bold text-white">
+              {user?.companyCode?.slice(0, 1) ?? "E"}
+            </div>
+          )}
         </div>
         {isOpen && (
           <div className="animate-fade-in min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight">
-              {user?.company?.name ?? "EmPay"}
+              {user?.companyName ?? "EmPay"}
             </p>
             <p className="truncate text-[0.65rem] text-muted-foreground">
-              {user?.company?.code ?? "HRMS"}
+              {user?.companyCode ?? "HRMS"}
             </p>
           </div>
         )}

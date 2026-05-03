@@ -157,8 +157,7 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Only EMPLOYEE-role users can be set as manager
-  const managerOptions = employees.filter((e) => e.role === "EMPLOYEE");
+  const managerOptions = employees;
 
   function set(key) {
     return (e) => {
@@ -185,6 +184,7 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
     if (!fields.email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) errs.email = "Enter a valid email";
     if (fields.monthlyWage && isNaN(Number(fields.monthlyWage))) errs.monthlyWage = "Must be a number";
+    if (fields.joiningDate && new Date(fields.joiningDate) > new Date()) errs.joiningDate = "Joining date cannot be in the future";
     return errs;
   }
 
@@ -272,7 +272,7 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
               <input type="number" min="0" className={INPUT_CLS} placeholder="50000" value={fields.monthlyWage} onChange={set("monthlyWage")} />
             </Field>
             <Field label="Joining Date" error={errors.joiningDate}>
-              <input type="date" className={INPUT_CLS} value={fields.joiningDate} onChange={set("joiningDate")} />
+              <input type="date" className={INPUT_CLS} value={fields.joiningDate} max={new Date().toISOString().split("T")[0]} onChange={set("joiningDate")} />
             </Field>
           </div>
 

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, Bell, Shield, Sun, Moon, Users, Building2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { User, Bell, Sun, Moon, Users, Building2, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Avatar } from "@/components/common/Avatar";
 import { Tabs } from "@/components/common/Tabs";
@@ -9,50 +9,114 @@ import { useToast } from "@/context/ToastContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useFetch } from "@/hooks/useFetch";
 import { api } from "@/lib/api";
-import { getInitials } from "@/lib/formatters";
 import { ROLE_LABELS, USER_ROLES } from "@/constants/roles";
 import { cn } from "@/lib/utils";
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
 function ProfileTab({ user, updateUser }) {
-  const [form, setForm] = useState({
-    name:    user?.name    ?? "",
-    email:   user?.email   ?? "",
-    phone:   user?.phone   ?? "",
-    company: user?.company ?? "",
-    title:   user?.title   ?? "",
-  });
-  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+  const fileRef   = useRef(null);
 
-  function handleSave(e) {
+  const [form, setForm]         = useState({
+    firstName: user?.firstName ?? "",
+    lastName:  user?.lastName  ?? "",
+    email:     user?.email     ?? "",
+    mobile:    user?.mobile    ?? "",
+    location:  user?.location  ?? "",
+  });
+  const [saved,      setSaved]      = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const [avatarUrl,  setAvatarUrl]  = useState(user?.avatarUrl ?? null);
+
+  const initials = [form.firstName?.[0], form.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "U";
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "error" }); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be smaller than 5 MB", variant: "error" }); return;
+    }
+    const fd = new FormData();
+    fd.append("avatar", file);
+    setUploading(true);
+    try {
+      const res = await api.patch(`/employees/${user.id}/avatar`, fd);
+      const url = res.data.employee.avatarUrl;
+      setAvatarUrl(url);
+      updateUser({ avatarUrl: url });
+      toast({ title: "Profile picture updated", variant: "success" });
+    } catch (err) {
+      toast({ title: err.message || "Upload failed", variant: "error" });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handleSave(e) {
     e.preventDefault();
-    updateUser(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      const res = await api.put(`/employees/${user.id}`, {
+        firstName: form.firstName.trim(),
+        lastName:  form.lastName.trim(),
+        mobile:    form.mobile.trim()   || null,
+        location:  form.location.trim() || null,
+      });
+      updateUser(res.data.employee);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      toast({ title: err.message || "Failed to save", variant: "error" });
+    }
   }
 
   return (
     <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
       {/* Avatar + name banner */}
       <div className="flex items-center gap-5 rounded-xl border border-border bg-muted/20 px-5 py-4">
-        <Avatar initials={getInitials(form.name || "U")} size="xl" />
+        <div className="relative shrink-0">
+          <Avatar src={avatarUrl ?? undefined} initials={initials} size="xl" />
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+              <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            </div>
+          )}
+          {!uploading && (
+            <>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 hover:opacity-100 transition-opacity"
+                title="Change profile picture"
+              >
+                <Pencil size={16} className="text-white" />
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            </>
+          )}
+        </div>
         <div>
-          <p className="text-base font-semibold text-foreground">{form.name || "Your Name"}</p>
+          <p className="text-base font-semibold text-foreground">
+            {[form.firstName, form.lastName].filter(Boolean).join(" ") || "Your Name"}
+          </p>
           <p className="text-sm text-muted-foreground">{form.email}</p>
         </div>
       </div>
 
-      {/* Form fields in a two-column grid */}
+      {/* Form fields */}
       <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-4">
         <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
         <div className="grid grid-cols-2 gap-4">
           {[
-            { key: "name",    label: "Full Name",  type: "text",  placeholder: "Jane Smith",        colSpan: false },
-            { key: "phone",   label: "Phone",      type: "tel",   placeholder: "+91 98765 43210",   colSpan: false },
-            { key: "email",   label: "Email",      type: "email", placeholder: "jane@acme.com",     readOnly: true, colSpan: true },
-            { key: "company", label: "Company",    type: "text",  placeholder: "Acme Corp",         colSpan: false },
-            { key: "title",   label: "Job Title",  type: "text",  placeholder: "VP of Operations",  colSpan: false },
+            { key: "firstName", label: "First Name", type: "text",  placeholder: "Jane",            colSpan: false },
+            { key: "lastName",  label: "Last Name",  type: "text",  placeholder: "Smith",           colSpan: false },
+            { key: "email",     label: "Email",      type: "email", placeholder: "jane@acme.com",   readOnly: true, colSpan: true },
+            { key: "mobile",    label: "Mobile",     type: "tel",   placeholder: "+91 98765 43210", colSpan: false },
+            { key: "location",  label: "Location",   type: "text",  placeholder: "Mumbai, India",   colSpan: false },
           ].map(({ key, label, type, placeholder, readOnly, colSpan }) => (
             <div key={key} className={cn("grid gap-1.5", colSpan && "col-span-2")}>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
@@ -152,33 +216,7 @@ function PreferencesTab() {
   );
 }
 
-// ─── Security Tab ─────────────────────────────────────────────────────────────
 
-function SecurityTab() {
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Login & Security</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">Password</p>
-              <p className="text-xs text-muted-foreground">Last changed 30 days ago</p>
-            </div>
-            <Button variant="outline" size="sm">Change Password</Button>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
-              <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
-            </div>
-            <Button variant="outline" size="sm">Enable 2FA</Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── User Settings Tab (Admin only) ───────────────────────────────────────────
 
@@ -323,9 +361,13 @@ function fmtComputedHours(start, end) {
 }
 
 function CompanyTab() {
-  const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
-  const [seeded, setSeeded] = useState(false);
+  const { toast, } = useToast();
+  const { updateUser } = useAuth();
+  const logoRef = useRef(null);
+
+  const [saving,        setSaving]        = useState(false);
+  const [seeded,        setSeeded]        = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime]     = useState("17:00");
@@ -342,6 +384,31 @@ function CompanyTab() {
 
   const computedLabel = fmtComputedHours(startTime, endTime);
   const isInvalid     = !computedLabel;
+
+  async function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "error" }); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be smaller than 5 MB", variant: "error" }); return;
+    }
+    const fd = new FormData();
+    fd.append("logo", file);
+    setLogoUploading(true);
+    try {
+      const res = await api.patch("/company/logo", fd);
+      updateUser({ companyLogoUrl: res.data.company.logoUrl });
+      toast({ title: "Company logo updated", variant: "success" });
+      refetch();
+    } catch (err) {
+      toast({ title: err.message || "Upload failed", variant: "error" });
+    } finally {
+      setLogoUploading(false);
+      if (logoRef.current) logoRef.current.value = "";
+    }
+  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -371,15 +438,37 @@ function CompanyTab() {
 
   return (
     <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
-      {/* Company info (read-only) */}
-      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Company Name</span>
-          <span className="font-medium text-foreground">{company?.name ?? "—"}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Company Code</span>
-          <span className="font-mono text-foreground">{company?.code ?? "—"}</span>
+      {/* Company info + logo */}
+      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4 space-y-4">
+        {/* Logo uploader */}
+        <div className="flex items-center gap-4">
+          <div className="relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border border-border bg-card">
+            {company?.logoUrl ? (
+              <img src={company.logoUrl} alt="Company logo" className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white">
+                {company?.code?.slice(0, 1) ?? "E"}
+              </div>
+            )}
+            {logoUploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+                <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">{company?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground font-mono">{company?.code ?? "—"}</p>
+            <button
+              type="button"
+              onClick={() => logoRef.current?.click()}
+              disabled={logoUploading}
+              className="mt-1.5 text-xs text-primary hover:underline disabled:opacity-50"
+            >
+              {logoUploading ? "Uploading…" : "Change logo"}
+            </button>
+            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+          </div>
         </div>
       </div>
 
@@ -454,7 +543,6 @@ export default function Settings() {
   const tabs = [
     { value: "profile",      label: "Profile",      icon: User,   content: <ProfileTab user={user} updateUser={updateUser} /> },
     { value: "preferences",  label: "Preferences",  icon: Bell,   content: <PreferencesTab /> },
-    { value: "security",     label: "Security",     icon: Shield, content: <SecurityTab /> },
     ...(isAdmin
       ? [
           { value: "users",   label: "User Settings", icon: Users,     labelClass: "text-[15px]", content: <UserSettingTab currentUserId={user?.id} /> },

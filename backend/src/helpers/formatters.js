@@ -45,6 +45,6 @@ export const formatUser = (user) => {
     createdAt:          user.createdAt,
     skills:             user.skills        ?? [],
     certifications:     user.certifications ?? [],
-    ...(user.company ? { companyName: user.company.name, companyCode: user.company.code } : {}),
+    ...(user.company ? { companyName: user.company.name, companyCode: user.company.code, companyLogoUrl: user.company.logoUrl ?? null } : {}),
   };
 };

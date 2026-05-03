@@ -29,6 +29,28 @@ export const getCompanySettings = async (companyId) => {
   return new apiResponse(200, "Company settings fetched", { company });
 };
 
+export const updateCompanyLogo = async (companyId, localFilePath) => {
+  if (!localFilePath) throw new apiError(400, "No file uploaded");
+
+  const { uploadToCloudinary, deleteFromCloudinary } = await import("../utils/cloudinary.js");
+
+  const existing = await prisma.company.findUnique({ where: { id: companyId }, select: { logoUrl: true } });
+  if (!existing) throw new apiError(404, "Company not found");
+
+  if (existing.logoUrl) await deleteFromCloudinary(existing.logoUrl).catch(() => {});
+
+  const uploadResult = await uploadToCloudinary(localFilePath);
+  const logoUrl = uploadResult.data;
+
+  const company = await prisma.company.update({
+    where:  { id: companyId },
+    data:   { logoUrl },
+    select: COMPANY_SELECT,
+  });
+
+  return new apiResponse(200, "Company logo updated", { company });
+};
+
 export const updateCompanySettings = async (companyId, data) => {
   const {
     workStartTime, workEndTime, breakTimeHours,

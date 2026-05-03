@@ -12,7 +12,7 @@ import { generateLoginId } from "./loginIdService.js";
 import { issueTokensForUser } from "../helpers/token-helpers.js";
 import { isPasswordCorrect } from "../helpers/password-helpers.js";
 
-const COMPANY_SELECT = { id: true, name: true, code: true };
+const COMPANY_SELECT = { id: true, name: true, code: true, logoUrl: true };
 
 /**
  * Public self-registration: creates a new Company + first ADMIN user in one transaction.

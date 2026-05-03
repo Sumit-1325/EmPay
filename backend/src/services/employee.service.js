@@ -154,7 +154,7 @@ export const updateEmployee = async (companyId, employeeId, data, requesterRole 
       ...(!isSelfEdit && workingDaysPerWeek != null && { workingDaysPerWeek }),
       ...(!isSelfEdit && breakTimeHours     != null && { breakTimeHours }),
       ...(!isSelfEdit && jobTitle           != null && { jobTitle }),
-      ...(!isSelfEdit && managerId          != null && { managerId }),
+      ...(!isSelfEdit && managerId          !== undefined && { managerId: managerId != null ? parseInt(managerId) : null }),
       // ── Self-editable fields (any authenticated user on own profile) ──────
       ...(mobile             != null && { mobile: mobile.trim() }),
       ...(location           != null && { location: location.trim() }),

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft, Pencil, Plus, X, Building2, MapPin,
   Mail, Phone, FileText, Star, Award, ShieldCheck,
@@ -11,7 +12,7 @@ import { Tabs } from "@/components/common/Tabs";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { ROLE_LABELS, MANAGER_ROLES, PAYROLL_ROLES } from "@/constants/roles";
+import { ROLE_LABELS, MANAGER_ROLES, PAYROLL_ROLES, USER_ROLES } from "@/constants/roles";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 import { getPasswordHints } from "@/lib/validators";
@@ -789,16 +790,221 @@ function SecurityTab({ employeeId, employeeEmail, employeeLoginId, isOwnProfile,
   return null;
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Edit Profile Modal ────────────────────────────────────────────────────────
+
+function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [managerOptions, setManagerOptions] = useState([]);
+
+  const isManagerRole = MANAGER_ROLES.includes(
+    employee?.role ?? "EMPLOYEE"
+  );
+
+  // Seed form from current employee values
+  const [fields, setFields] = useState({
+    firstName:   employee.firstName  ?? "",
+    lastName:    employee.lastName   ?? "",
+    email:       employee.email      ?? "",
+    jobTitle:    employee.jobTitle   ?? "",
+    role:        employee.role       ?? "EMPLOYEE",
+    joiningDate: employee.joiningDate
+      ? new Date(employee.joiningDate).toISOString().split("T")[0]
+      : "",
+    managerId:   employee.managerId  ? String(employee.managerId) : "",
+    mobile:      employee.mobile     ?? "",
+    location:    employee.location   ?? "",
+  });
+
+  const [errors, setErrors] = useState({});
+
+  // Load manager candidates — any employee in the company except self
+  useEffect(() => {
+    api.get("/employees")
+      .then((res) => setManagerOptions(
+        (res.data.employees ?? []).filter((e) => e.id !== employee.id)
+      ))
+      .catch(() => {});
+  }, [employee.id]);
+
+  function set(key) {
+    return (e) => {
+      const val = e.target.value;
+      setFields((p) => ({
+        ...p,
+        [key]: val,
+        // Clear managerId when role changes away from EMPLOYEE
+        ...(key === "role" && val !== "EMPLOYEE" ? { managerId: "" } : {}),
+      }));
+      if (errors[key]) setErrors((p) => ({ ...p, [key]: "" }));
+    };
+  }
+
+  function validate() {
+    const errs = {};
+    if (!fields.firstName.trim()) errs.firstName = "Required";
+    if (!fields.lastName.trim())  errs.lastName  = "Required";
+    if (!fields.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email))
+      errs.email = "Valid email required";
+    return errs;
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        firstName:   fields.firstName.trim(),
+        lastName:    fields.lastName.trim(),
+        email:       fields.email.trim().toLowerCase(),
+        jobTitle:    fields.jobTitle.trim() || null,
+        mobile:      fields.mobile.trim()   || null,
+        location:    fields.location.trim() || null,
+      };
+      // Admin-only fields
+      if (isAdmin) {
+        payload.role        = fields.role;
+        payload.joiningDate = fields.joiningDate || null;
+        payload.managerId   = fields.role === "EMPLOYEE" && fields.managerId
+          ? parseInt(fields.managerId) : null;
+      }
+      const res = await api.put(`/employees/${employee.id}`, payload);
+      toast({ title: "Profile updated", variant: "success" });
+      onSaved(res.data.employee);
+      onClose();
+    } catch (err) {
+      toast({ title: err.message || "Failed to update", variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const INPUT = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-colors disabled:opacity-60";
+  const SELECT = `${INPUT} cursor-pointer`;
+  const LABEL = "block text-xs font-medium text-muted-foreground mb-1";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg animate-fade-up rounded-2xl border border-border bg-card shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-foreground">Edit Profile</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[80vh] px-6 py-5 space-y-4">
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>First Name <span className="text-destructive">*</span></label>
+              <input className={cn(INPUT, errors.firstName && "border-destructive")} value={fields.firstName} onChange={set("firstName")} />
+              {errors.firstName && <p className="text-xs text-destructive mt-0.5">{errors.firstName}</p>}
+            </div>
+            <div>
+              <label className={LABEL}>Last Name <span className="text-destructive">*</span></label>
+              <input className={cn(INPUT, errors.lastName && "border-destructive")} value={fields.lastName} onChange={set("lastName")} />
+              {errors.lastName && <p className="text-xs text-destructive mt-0.5">{errors.lastName}</p>}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className={LABEL}>Email <span className="text-destructive">*</span></label>
+            <input type="email" className={cn(INPUT, errors.email && "border-destructive")} value={fields.email} onChange={set("email")} />
+            {errors.email && <p className="text-xs text-destructive mt-0.5">{errors.email}</p>}
+          </div>
+
+          {/* Job Title */}
+          <div>
+            <label className={LABEL}>Job Title</label>
+            <input className={INPUT} placeholder="e.g. Senior Engineer" value={fields.jobTitle} onChange={set("jobTitle")} />
+          </div>
+
+          {/* Mobile + Location */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Mobile</label>
+              <input className={INPUT} placeholder="+91 9999999999" value={fields.mobile} onChange={set("mobile")} />
+            </div>
+            <div>
+              <label className={LABEL}>Location</label>
+              <input className={INPUT} placeholder="City, State" value={fields.location} onChange={set("location")} />
+            </div>
+          </div>
+
+          {/* Admin-only fields */}
+          {isAdmin && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Role</label>
+                  <select className={SELECT} value={fields.role} onChange={set("role")}>
+                    {Object.entries(USER_ROLES)
+                      .filter(([k]) => k !== "SUPER_ADMIN")
+                      .map(([k]) => (
+                        <option key={k} value={k}>{k.replace(/_/g, " ")}</option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Joining Date</label>
+                  <input type="date" className={INPUT} value={fields.joiningDate} max={new Date().toISOString().split("T")[0]} onChange={set("joiningDate")} />
+                </div>
+              </div>
+
+              {fields.role === "EMPLOYEE" && (
+                <div>
+                  <label className={LABEL}>Manager</label>
+                  <select className={SELECT} value={fields.managerId} onChange={set("managerId")}>
+                    <option value="">None / No Manager</option>
+                    {managerOptions.map((e) => (
+                      <option key={e.id} value={String(e.id)}>
+                        {[e.firstName, e.lastName].filter(Boolean).join(" ") || e.loginId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 border-t border-border pt-4 mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="h-9 rounded-lg bg-primary px-5 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function EmployeeDetail() {
   const { id }       = useParams();
   const navigate     = useNavigate();
-  const { user }     = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast }    = useToast();
   const fileRef      = useRef(null);
 
-  const [employee, setEmployee] = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [employee, setEmployee]   = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [editOpen, setEditOpen]   = useState(false);
 
   const canEdit       = MANAGER_ROLES.includes(user?.role) || user?.id === employee?.id;
   const canViewSalary = PAYROLL_ROLES.includes(user?.role);
@@ -826,14 +1032,31 @@ export default function EmployeeDetail() {
   async function handleAvatarChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Validate: image only, max 5 MB
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "error" }); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be smaller than 5 MB", variant: "error" }); return;
+    }
     const form = new FormData();
     form.append("avatar", file);
+    setUploading(true);
     try {
       const res = await api.patch(`/employees/${id}/avatar`, form);
-      setEmployee(res.data.employee);
+      const updated = res.data.employee;
+      setEmployee(updated);
+      // Sync Topbar/AuthContext if this is the logged-in user's own avatar
+      if (user?.id === updated.id) {
+        updateUser({ avatarUrl: updated.avatarUrl });
+      }
       toast({ title: "Avatar updated", variant: "success" });
     } catch (err) {
       toast({ title: err.message || "Upload failed", variant: "error" });
+    } finally {
+      setUploading(false);
+      // Reset file input so the same file can be re-selected
+      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -889,18 +1112,18 @@ export default function EmployeeDetail() {
         </div>
       ),
     },
-    {
+    ...(user?.id === employee?.id ? [{
       value: "private",
       label: "Private Info",
       icon: ShieldCheck,
       content: (
         <PrivateInfoTab
           employee={employee}
-          canEdit={canEdit || user?.id === employee?.id}
+          canEdit={true}
           onSave={saveField}
         />
       ),
-    },
+    }] : []),
     ...(canViewSalary ? [{
       value: "salary",
       label: "Salary Info",
@@ -942,15 +1165,35 @@ export default function EmployeeDetail() {
 
       {/* Profile header card */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        {/* Edit button */}
+        {canEdit && (
+          <div className="flex justify-end mb-3">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Pencil size={12} /> Edit Profile
+            </button>
+          </div>
+        )}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           {/* Avatar with edit overlay */}
           <div className="relative shrink-0 self-center sm:self-start">
             <Avatar src={employee.avatarUrl ?? undefined} initials={initials} size="xl" />
-            {canEdit && (
+            {/* Uploading spinner overlay */}
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+                <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              </div>
+            )}
+            {canEdit && !uploading && (
               <>
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 hover:opacity-100 transition-opacity"
+                  className={cn(
+                    "absolute inset-0 flex items-center justify-center rounded-full bg-black/50 transition-opacity",
+                    user?.id === employee?.id ? "opacity-100" : "opacity-0 hover:opacity-100"
+                  )}
                   title="Change avatar"
                 >
                   <Pencil size={16} className="text-white" />
@@ -1017,6 +1260,17 @@ export default function EmployeeDetail() {
 
       {/* Tabs */}
       <Tabs tabs={tabs} defaultValue="resume" />
+
+      {/* Edit Profile Modal */}
+      {editOpen && employee && (
+        <EditProfileModal
+          employee={employee}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => setEmployee(updated)}
+          currentUserId={user?.id}
+          isAdmin={user?.role === "ADMIN" || user?.role === "HR_OFFICER"}
+        />
+      )}
     </div>
   );
 }

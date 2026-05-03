@@ -42,6 +42,14 @@ const createValidators = [
     .isIn(["ADMIN", "HR_OFFICER", "PAYROLL_OFFICER", "EMPLOYEE"])
     .withMessage("Invalid role."),
   body("monthlyWage").optional().isFloat({ min: 0 }).withMessage("Monthly wage must be a positive number."),
+  body("joiningDate")
+    .optional()
+    .isDate()
+    .withMessage("Joining date must be a valid date.")
+    .custom((val) => {
+      if (new Date(val) > new Date()) throw new Error("Joining date cannot be in the future.");
+      return true;
+    }),
 ];
 
 router.get(   "/",           requireRole("ADMIN", "HR_OFFICER", "PAYROLL_OFFICER"), listEmployeesController);
@@ -49,7 +57,7 @@ router.post(  "/",           requireRole("ADMIN", "HR_OFFICER"), createValidator
 router.get(   "/:id",        selfOrManagerRole("ADMIN", "HR_OFFICER", "PAYROLL_OFFICER"), getEmployeeController);
 router.put(   "/:id",        selfOrManagerRole("ADMIN", "HR_OFFICER"),                    updateEmployeeController);
 router.delete("/:id",        requireRole("ADMIN"),               deleteEmployeeController);
-router.patch( "/:id/avatar",              requireRole("ADMIN", "HR_OFFICER"), upload.single("avatar"), uploadAvatarController);
+router.patch( "/:id/avatar",              selfOrManagerRole("ADMIN", "HR_OFFICER"), upload.single("avatar"), uploadAvatarController);
 router.post(  "/:id/skills",              requireRole("ADMIN", "HR_OFFICER"), addSkillController);
 router.delete("/:id/skills/:skillId",     requireRole("ADMIN", "HR_OFFICER"), deleteSkillController);
 router.post(  "/:id/certifications",      requireRole("ADMIN", "HR_OFFICER"), addCertificationController);
