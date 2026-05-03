@@ -479,7 +479,8 @@ function WageField({ label, value, field, canEdit, onSave, integer }) {
   async function handleBlur() {
     setEditing(false);
     const parsed = integer ? parseInt(draft) : parseFloat(draft);
-    if (!isNaN(parsed) && parsed !== value) await onSave(field, parsed);
+    if (!isNaN(parsed) && parsed > 0 && parsed !== value) await onSave(field, parsed);
+    else setDraft(value ?? ""); // reset if invalid
   }
 
   return (
@@ -489,7 +490,7 @@ function WageField({ label, value, field, canEdit, onSave, integer }) {
         <input
           autoFocus
           type="number"
-          min="0"
+          min="1"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={handleBlur}
@@ -805,7 +806,6 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
   const [fields, setFields] = useState({
     firstName:   employee.firstName  ?? "",
     lastName:    employee.lastName   ?? "",
-    email:       employee.email      ?? "",
     jobTitle:    employee.jobTitle   ?? "",
     role:        employee.role       ?? "EMPLOYEE",
     joiningDate: employee.joiningDate
@@ -844,8 +844,6 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
     const errs = {};
     if (!fields.firstName.trim()) errs.firstName = "Required";
     if (!fields.lastName.trim())  errs.lastName  = "Required";
-    if (!fields.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email))
-      errs.email = "Valid email required";
     return errs;
   }
 
@@ -858,7 +856,6 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
       const payload = {
         firstName:   fields.firstName.trim(),
         lastName:    fields.lastName.trim(),
-        email:       fields.email.trim().toLowerCase(),
         jobTitle:    fields.jobTitle.trim() || null,
         mobile:      fields.mobile.trim()   || null,
         location:    fields.location.trim() || null,
@@ -867,8 +864,7 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
       if (isAdmin) {
         payload.role        = fields.role;
         payload.joiningDate = fields.joiningDate || null;
-        payload.managerId   = fields.role === "EMPLOYEE" && fields.managerId
-          ? parseInt(fields.managerId) : null;
+        payload.managerId   = fields.managerId ? parseInt(fields.managerId) : null;
       }
       const res = await api.put(`/employees/${employee.id}`, payload);
       toast({ title: "Profile updated", variant: "success" });
@@ -907,13 +903,6 @@ function EditProfileModal({ employee, onClose, onSaved, currentUserId, isAdmin }
               <input className={cn(INPUT, errors.lastName && "border-destructive")} value={fields.lastName} onChange={set("lastName")} />
               {errors.lastName && <p className="text-xs text-destructive mt-0.5">{errors.lastName}</p>}
             </div>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className={LABEL}>Email <span className="text-destructive">*</span></label>
-            <input type="email" className={cn(INPUT, errors.email && "border-destructive")} value={fields.email} onChange={set("email")} />
-            {errors.email && <p className="text-xs text-destructive mt-0.5">{errors.email}</p>}
           </div>
 
           {/* Job Title */}
@@ -1268,7 +1257,7 @@ export default function EmployeeDetail() {
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => setEmployee(updated)}
           currentUserId={user?.id}
-          isAdmin={user?.role === "ADMIN" || user?.role === "HR_OFFICER"}
+          isAdmin={(user?.role === "ADMIN" || user?.role === "HR_OFFICER") && user?.id !== employee?.id}
         />
       )}
     </div>

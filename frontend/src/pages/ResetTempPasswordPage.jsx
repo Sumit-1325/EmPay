@@ -138,7 +138,6 @@ export default function ResetTempPasswordPage() {
             icon={Hash}
             value={loginId}
             readOnly
-            disabled
             error={errors.loginId}
             animationClass="animate-fade-up delay-0"
           />

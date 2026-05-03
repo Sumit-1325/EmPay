@@ -41,7 +41,7 @@ const createValidators = [
     .optional()
     .isIn(["ADMIN", "HR_OFFICER", "PAYROLL_OFFICER", "EMPLOYEE"])
     .withMessage("Invalid role."),
-  body("monthlyWage").optional().isFloat({ min: 0 }).withMessage("Monthly wage must be a positive number."),
+  body("monthlyWage").optional().isFloat({ min: 1 }).withMessage("Monthly wage must be greater than 0."),
   body("joiningDate")
     .optional()
     .isDate()

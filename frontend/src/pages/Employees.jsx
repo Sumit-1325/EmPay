@@ -183,8 +183,11 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
     if (!fields.lastName.trim()) errs.lastName = "Last name is required";
     if (!fields.email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) errs.email = "Enter a valid email";
-    if (fields.monthlyWage && isNaN(Number(fields.monthlyWage))) errs.monthlyWage = "Must be a number";
-    if (fields.joiningDate && new Date(fields.joiningDate) > new Date()) errs.joiningDate = "Joining date cannot be in the future";
+    if (!fields.role) errs.role = "Role is required";
+    if (!fields.monthlyWage) errs.monthlyWage = "Monthly wage is required";
+    else if (isNaN(Number(fields.monthlyWage)) || Number(fields.monthlyWage) <= 0) errs.monthlyWage = "Monthly wage must be greater than 0";
+    if (!fields.joiningDate) errs.joiningDate = "Joining date is required";
+    else if (new Date(fields.joiningDate) > new Date()) errs.joiningDate = "Joining date cannot be in the future";
     return errs;
   }
 
@@ -257,7 +260,7 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
             <input type="email" className={INPUT_CLS} placeholder="jane@company.com" value={fields.email} onChange={set("email")} />
           </Field>
 
-          <Field label="Role" error={errors.role}>
+          <Field label="Role" required error={errors.role}>
             <select className={SELECT_CLS} value={fields.role} onChange={handleRoleChange}>
               {Object.entries(USER_ROLES)
                 .filter(([k]) => k !== "SUPER_ADMIN")
@@ -268,10 +271,10 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Monthly Wage (₹)" error={errors.monthlyWage}>
-              <input type="number" min="0" className={INPUT_CLS} placeholder="50000" value={fields.monthlyWage} onChange={set("monthlyWage")} />
+            <Field label="Monthly Wage (₹)" required error={errors.monthlyWage}>
+              <input type="number" min="1" className={INPUT_CLS} placeholder="50000" value={fields.monthlyWage} onChange={set("monthlyWage")} />
             </Field>
-            <Field label="Joining Date" error={errors.joiningDate}>
+            <Field label="Joining Date" required error={errors.joiningDate}>
               <input type="date" className={INPUT_CLS} value={fields.joiningDate} max={new Date().toISOString().split("T")[0]} onChange={set("joiningDate")} />
             </Field>
           </div>

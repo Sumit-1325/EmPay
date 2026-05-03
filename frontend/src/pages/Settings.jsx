@@ -112,11 +112,10 @@ function ProfileTab({ user, updateUser }) {
         <h3 className="text-sm font-bold text-foreground">Personal Information</h3>
         <div className="grid grid-cols-2 gap-4">
           {[
-            { key: "firstName", label: "First Name", type: "text",  placeholder: "Jane",            colSpan: false },
-            { key: "lastName",  label: "Last Name",  type: "text",  placeholder: "Smith",           colSpan: false },
-            { key: "email",     label: "Email",      type: "email", placeholder: "jane@acme.com",   readOnly: true, colSpan: true },
-            { key: "mobile",    label: "Mobile",     type: "tel",   placeholder: "+91 98765 43210", colSpan: false },
-            { key: "location",  label: "Location",   type: "text",  placeholder: "Mumbai, India",   colSpan: false },
+            { key: "firstName", label: "First Name", type: "text", placeholder: "Jane",            colSpan: false },
+            { key: "lastName",  label: "Last Name",  type: "text", placeholder: "Smith",           colSpan: false },
+            { key: "mobile",    label: "Mobile",     type: "tel",  placeholder: "+91 98765 43210", colSpan: false },
+            { key: "location",  label: "Location",   type: "text", placeholder: "Mumbai, India",   colSpan: false },
           ].map(({ key, label, type, placeholder, readOnly, colSpan }) => (
             <div key={key} className={cn("grid gap-1.5", colSpan && "col-span-2")}>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>

@@ -16,6 +16,7 @@ export function AuthField({
   error,
   required = false,
   disabled = false,
+  readOnly = false,
   animationClass = "",
 }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -49,17 +50,19 @@ export function AuthField({
           placeholder={placeholder}
           required={required}
           disabled={disabled}
+          readOnly={readOnly}
           value={value}
           onChange={onChange ?? (() => { })}
+          style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", caretColor: "#ffffff" }}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
           className={cn(
-            "auth-input-focus h-11 rounded-xl border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/60 hover:border-primary/40",
-            "dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white dark:placeholder:text-white/25 dark:hover:border-white/[0.15] dark:hover:bg-white/[0.06]",
+            "auth-input-focus h-11 rounded-xl border-white/[0.12] bg-white/[0.06] text-sm text-white placeholder:text-white/65 hover:border-white/[0.2] hover:bg-white/[0.09]",
             Icon ? "pl-10" : "pl-4",
             isPassword ? "pr-10" : "pr-4",
             error && "border-destructive/50 focus-visible:ring-destructive/30",
-            disabled && "opacity-50 cursor-not-allowed hover:border-white/[0.08] hover:bg-white/[0.04]"
+            disabled && "opacity-50 cursor-not-allowed hover:border-white/[0.08] hover:bg-white/[0.04]",
+            readOnly && "!text-foreground dark:!text-white dark:!bg-white/[0.12] cursor-default select-all"
           )}
         />
         {isPassword && (
