@@ -22,7 +22,7 @@ export const registerCompany = async ({ companyName, companyCode, firstName, las
   const normalizedEmail = normalizeEmail(email);
   const code            = companyCode.trim().toUpperCase();
 
-  // Check company code is not already taken (it's globally unique)
+  // Check company code is not already taken (it's globally unique)33333333333333333333333332
   const existingCompany = await prisma.company.findUnique({ where: { code } });
   if (existingCompany) {
     throw new apiError(409, "Company code already taken. Choose a different code.", [

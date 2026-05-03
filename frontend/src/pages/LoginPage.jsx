@@ -116,16 +116,6 @@ export default function LoginPage() {
             animationClass="animate-fade-up delay-2"
           />
 
-          <div className="animate-fade-up delay-3 flex items-center justify-end">
-            <button
-              type="button"
-              className="text-xs font-medium text-primary/80 transition-colors hover:text-secondary"
-              aria-label="Forgot password"
-            >
-              Forgot password?
-            </button>
-          </div>
-
           <Button
             type="submit"
             disabled={loading}
