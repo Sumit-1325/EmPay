@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Plane, X, Copy, Check, Eye, EyeOff } from "lucide-react";
+import { Search, Plus, Plane, X, Copy, Check, Eye, EyeOff, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/common/Avatar";
 import { api } from "@/lib/api";
@@ -61,7 +61,7 @@ const INPUT_CLS = "h-10 w-full rounded-lg border border-border bg-background px-
 const SELECT_CLS = `${INPUT_CLS} cursor-pointer`;
 
 // ── Temp password reveal ──────────────────────────────────────────────────────
-function TempPasswordCard({ loginId, tempPassword, onClose }) {
+function TempPasswordCard({ loginId, tempPassword, email, onClose }) {
   const [copied, setCopied] = useState(false);
   const [visible, setVisible] = useState(false);
   const { toast } = useToast();
@@ -71,6 +71,16 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function handleSendEmail() {
+    // Email is already sent by backend on creation — confirm and close
+    toast({
+      title: "Credentials sent",
+      description: `Login ID and password have been emailed to ${email}.`,
+      variant: "success",
+    });
+    onClose();
   }
 
   return createPortal(
@@ -83,7 +93,7 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
           </button>
         </div>
 
-        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-300">
           Save these credentials — the password is shown only once and cannot be recovered.
         </div>
 
@@ -111,13 +121,22 @@ function TempPasswordCard({ loginId, tempPassword, onClose }) {
               </button>
             </div>
           </div>
+
+          {/* Email destination */}
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5">
+            <Mail size={13} className="shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-[0.65rem] text-muted-foreground uppercase tracking-wide">Credentials sent to</p>
+              <p className="text-sm text-foreground truncate">{email}</p>
+            </div>
+          </div>
         </div>
 
         <Button
-          onClick={onClose}
-          className="mt-5 h-9 w-full rounded-lg bg-gradient-to-r from-primary to-secondary text-sm font-semibold text-white hover:brightness-110"
+          onClick={handleSendEmail}
+          className="mt-5 h-10 w-full rounded-lg bg-gradient-to-r from-primary to-secondary text-sm font-semibold text-white hover:brightness-110"
         >
-          Done
+          <Mail size={15} className="mr-2" /> Send Email
         </Button>
       </div>
     </div>,
@@ -322,7 +341,7 @@ export default function Employees() {
 
   function handleCreated(employee, tempPassword) {
     setShowCreate(false);
-    setCreatedCreds({ loginId: employee.loginId, tempPassword });
+    setCreatedCreds({ loginId: employee.loginId, tempPassword, email: employee.email });
     setEmployees((prev) => [employee, ...prev]);
   }
 
@@ -400,6 +419,7 @@ export default function Employees() {
         <TempPasswordCard
           loginId={createdCreds.loginId}
           tempPassword={createdCreds.tempPassword}
+          email={createdCreds.email}
           onClose={() => setCreatedCreds(null)}
         />
       )}

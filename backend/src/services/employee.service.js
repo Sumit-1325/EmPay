@@ -114,15 +114,19 @@ export const createEmployee = async (companyId, data) => {
   });
 };
 
-export const updateEmployee = async (companyId, employeeId, data) => {
+export const updateEmployee = async (companyId, employeeId, data, requesterRole = "ADMIN") => {
   const existing = await prisma.user.findFirst({ where: { id: employeeId, companyId } });
   if (!existing) throw new apiError(404, "Employee not found");
 
+  const isSelfEdit = requesterRole === "EMPLOYEE";
+
   const {
+    // HR/Admin-only fields (ignored when employee updates own profile)
     firstName, lastName, role, basicSalary, pfNumber, joiningDate,
-    mobile, location, about, jobPassion, interests,
     monthlyWage, pfRate, workingDaysPerWeek, breakTimeHours,
     jobTitle, managerId,
+    // Fields any user can edit on their own profile
+    mobile, location, about, jobPassion, interests,
     dateOfBirth, address, nationality, personalEmail, gender, maritalStatus,
     bankAccountNumber, bankName, ifscCode, panNumber, uanNumber, empCode,
   } = data;
@@ -130,26 +134,28 @@ export const updateEmployee = async (companyId, employeeId, data) => {
   const updated = await prisma.user.update({
     where: { id: employeeId },
     data: {
-      ...(firstName    != null && { firstName: firstName.trim() }),
-      ...(lastName     != null && { lastName:  lastName.trim()  }),
-      ...((firstName != null || lastName != null) && {
+      // ── Manager/Admin-only fields ─────────────────────────────────────────
+      ...(!isSelfEdit && firstName    != null && { firstName: firstName.trim() }),
+      ...(!isSelfEdit && lastName     != null && { lastName:  lastName.trim()  }),
+      ...(!isSelfEdit && (firstName != null || lastName != null) && {
         name: `${(firstName ?? existing.firstName ?? "").trim()} ${(lastName ?? existing.lastName ?? "").trim()}`.trim(),
       }),
-      ...(role               != null && { role }),
-      ...(basicSalary        != null && { basicSalary }),
-      ...(pfNumber           != null && { pfNumber }),
-      ...(joiningDate        != null && { joiningDate: new Date(joiningDate) }),
+      ...(!isSelfEdit && role               != null && { role }),
+      ...(!isSelfEdit && basicSalary        != null && { basicSalary }),
+      ...(!isSelfEdit && pfNumber           != null && { pfNumber }),
+      ...(!isSelfEdit && joiningDate        != null && { joiningDate: new Date(joiningDate) }),
+      ...(!isSelfEdit && monthlyWage        != null && { monthlyWage, basicSalary: monthlyWage * 0.5 }),
+      ...(!isSelfEdit && pfRate             != null && { pfRate }),
+      ...(!isSelfEdit && workingDaysPerWeek != null && { workingDaysPerWeek }),
+      ...(!isSelfEdit && breakTimeHours     != null && { breakTimeHours }),
+      ...(!isSelfEdit && jobTitle           != null && { jobTitle }),
+      ...(!isSelfEdit && managerId          != null && { managerId }),
+      // ── Self-editable fields (any authenticated user on own profile) ──────
       ...(mobile             != null && { mobile: mobile.trim() }),
       ...(location           != null && { location: location.trim() }),
       ...(about              != null && { about }),
       ...(jobPassion         != null && { jobPassion }),
       ...(interests          != null && { interests }),
-      ...(monthlyWage        != null && { monthlyWage, basicSalary: monthlyWage * 0.5 }),
-      ...(pfRate             != null && { pfRate }),
-      ...(workingDaysPerWeek != null && { workingDaysPerWeek }),
-      ...(breakTimeHours     != null && { breakTimeHours }),
-      ...(jobTitle           != null && { jobTitle }),
-      ...(managerId          != null && { managerId }),
       ...(dateOfBirth        != null && { dateOfBirth: new Date(dateOfBirth) }),
       ...(address            != null && { address }),
       ...(nationality        != null && { nationality }),
@@ -257,13 +263,14 @@ export const resetEmployeePassword = async (companyId, employeeId) => {
     data:  { passwordHash, mustChangePassword: true, refreshToken: null },
   });
 
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?loginId=${encodeURIComponent(employee.loginId)}`;
   sendEmail({
     to:      employee.email,
     subject: `Your EmPay password has been reset`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2 style="color:#6366f1">Password Reset</h2>
-        <p>Your password has been reset by an administrator. Use the credentials below to log in.</p>
+        <p>Your password has been reset by an administrator. Use the credentials below to set a new password.</p>
         <table style="border-collapse:collapse;width:100%;margin:16px 0">
           <tr>
             <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Login ID</td>
@@ -271,12 +278,15 @@ export const resetEmployeePassword = async (companyId, employeeId) => {
           </tr>
           <tr><td colspan="2" style="height:8px"></td></tr>
           <tr>
-            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">New Password</td>
+            <td style="padding:10px 14px;background:#f3f4f6;font-weight:600;border-radius:6px 0 0 6px">Temp Password</td>
             <td style="padding:10px 14px;background:#f9fafb;font-family:monospace;border-radius:0 6px 6px 0">${tempPassword}</td>
           </tr>
         </table>
-        <p style="color:#ef4444;font-size:13px">⚠️ You will be asked to change this password on next login.</p>
-        <p style="font-size:13px;color:#6b7280">Login at: <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a></p>
+        <p style="margin:20px 0">
+          <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Set New Password →</a>
+        </p>
+        <p style="color:#ef4444;font-size:13px">⚠️ You will be asked to change this password on first login.</p>
+        <p style="font-size:12px;color:#9ca3af">If the button doesn't work, copy this link: ${resetLink}</p>
       </div>
     `,
   }).catch(() => {});

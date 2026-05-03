@@ -7,7 +7,7 @@ const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 export const sendEmail = async ({ to, subject, text, html }) => {
   const brevoApiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME || "EcoFlow Support";
+  const senderName = process.env.BREVO_SENDER_NAME;
 
   if (!brevoApiKey || !senderEmail) {
     throw new apiError(500, "Brevo is not configured", [

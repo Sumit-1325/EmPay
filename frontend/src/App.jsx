@@ -13,7 +13,8 @@ import { ROUTES } from "@/constants/routes";
 // ── Lazy-loaded pages ─────────────────────────────────────────
 const LoginPage          = lazy(() => import("@/pages/LoginPage"));
 const RegisterPage       = lazy(() => import("@/pages/RegisterPage"));
-const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage"));
+const ChangePasswordPage      = lazy(() => import("@/pages/ChangePasswordPage"));
+const ResetTempPasswordPage   = lazy(() => import("@/pages/ResetTempPasswordPage"));
 const Employees          = lazy(() => import("@/pages/Employees"));
 const EmployeeDetail     = lazy(() => import("@/pages/EmployeeDetail"));
 const Attendance         = lazy(() => import("@/pages/Attendance"));
@@ -72,6 +73,9 @@ function AppRoutes() {
         <Route element={<RequirePasswordChange />}>
           <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePasswordPage />} />
         </Route>
+
+        {/* ── Public: email reset link for new employees ─── */}
+        <Route path={ROUTES.RESET_PASSWORD} element={<ResetTempPasswordPage />} />
 
         {/* ── Protected (HRMS pages) ─── */}
         <Route element={<RequireAuth />}>

@@ -29,7 +29,12 @@ export const createEmployeeController = asyncHandler(async (req, res) => {
 });
 
 export const updateEmployeeController = asyncHandler(async (req, res) => {
-  const result = await updateEmployee(req.user.companyId, parseInt(req.params.id), req.body);
+  const result = await updateEmployee(
+    req.user.companyId,
+    parseInt(req.params.id),
+    req.body,
+    req.user.role,   // passed so service can restrict self-edits by EMPLOYEE
+  );
   return res.status(result.statusCode).json(result);
 });
 
