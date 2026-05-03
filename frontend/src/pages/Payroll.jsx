@@ -502,17 +502,19 @@ function PayrunTab() {
 
 function ConfigurationTab() {
   const { toast }  = useToast();
-  const [saving, setSaving]   = useState(false);
-  const [seeded, setSeeded]   = useState(false);
-  const [startTime, setStart] = useState("09:00");
-  const [endTime,   setEnd]   = useState("17:00");
+  const [saving, setSaving]       = useState(false);
+  const [seeded, setSeeded]       = useState(false);
+  const [startTime, setStart]     = useState("09:00");
+  const [endTime,   setEnd]       = useState("17:00");
+  const [breakTime, setBreakTime] = useState(1);
 
   const { data, loading, refetch } = useFetch(() => api.get("/company/settings"), []);
   const company = data?.company;
 
   if (company && !seeded) {
-    setStart(company.workStartTime ?? "09:00");
-    setEnd(company.workEndTime     ?? "17:00");
+    setStart(company.workStartTime  ?? "09:00");
+    setEnd(company.workEndTime      ?? "17:00");
+    setBreakTime(company.breakTimeHours ?? 1);
     setSeeded(true);
   }
 
@@ -527,10 +529,19 @@ function ConfigurationTab() {
   async function handleSave(e) {
     e.preventDefault();
     if (!isValid) { toast({ title: "End time must be after start time", variant: "error" }); return; }
+    if (breakTime <= 0) { toast({ title: "Break time must be greater than 0", variant: "error" }); return; }
     setSaving(true);
     try {
-      await api.put("/company/settings", { workStartTime: startTime, workEndTime: endTime });
-      toast({ title: "Configuration saved", description: `Work hours: ${startTime} – ${endTime} (${diffLabel})`, variant: "success" });
+      await api.put("/company/settings", {
+        workStartTime: startTime,
+        workEndTime:   endTime,
+        breakTimeHours: parseFloat(breakTime),
+      });
+      toast({
+        title: "Configuration saved",
+        description: `Work hours: ${startTime} – ${endTime} (${diffLabel}), Break: ${breakTime}h`,
+        variant: "success",
+      });
       refetch();
     } catch (err) {
       toast({ title: err.message, variant: "error" });
@@ -580,6 +591,24 @@ function ConfigurationTab() {
             <span className={cn("text-lg font-bold", isValid ? "text-primary" : "text-destructive")}>
               {isValid ? diffLabel : "—"}
             </span>
+          </div>
+
+          {/* Break Time */}
+          <div className="grid gap-1.5">
+            <label htmlFor="cfgBreak" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Default Break Time (hrs)
+            </label>
+            <input
+              id="cfgBreak"
+              type="number"
+              min="0"
+              max="4"
+              step="0.5"
+              value={breakTime}
+              onChange={(e) => setBreakTime(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Applied to all new employees created after saving</p>
           </div>
         </div>
       </div>

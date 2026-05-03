@@ -40,12 +40,15 @@ export const getEmployee = async (companyId, employeeId) => {
 };
 
 export const createEmployee = async (companyId, data) => {
-  const { firstName, lastName, email, role, joiningDate, monthlyWage, pfNumber } = data;
+  const { firstName, lastName, email, role, joiningDate, monthlyWage, pfNumber, managerId } = data;
   const basicSalary = monthlyWage != null ? monthlyWage * 0.5 : null;
 
   const joining   = joiningDate ? new Date(joiningDate) : new Date();
   const company   = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) throw new apiError(404, "Company not found");
+
+  // Inherit company-level break time default for new employees
+  const defaultBreakTime = company.breakTimeHours ?? 1;
 
   const tempPassword = generateTempPassword();
   const passwordHash = await bcrypt.hash(tempPassword, 10);
@@ -76,6 +79,8 @@ export const createEmployee = async (companyId, data) => {
         monthlyWage:        monthlyWage ?? null,
         basicSalary:        basicSalary,          // auto-computed: 50% of monthlyWage
         pfNumber:           pfNumber    ?? null,
+        breakTimeHours:     defaultBreakTime,      // inherit from company setting
+        ...(managerId && { managerId: parseInt(managerId) }),
         mustChangePassword: true,
       },
       include: { company: { select: COMPANY_SELECT } },

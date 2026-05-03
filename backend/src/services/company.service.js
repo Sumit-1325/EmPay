@@ -4,7 +4,9 @@ import { apiResponse } from "../utils/api-response.js";
 
 const COMPANY_SELECT = {
   id: true, name: true, code: true, logoUrl: true,
-  standardHours: true, workStartTime: true, workEndTime: true, createdAt: true,
+  standardHours: true, workStartTime: true, workEndTime: true,
+  breakTimeHours: true,
+  createdAt: true,
   hraPercent: true, standardAllowancePercent: true, performanceBonusPercent: true,
   ltaPercent: true, fixedAllowancePercent: true, professionalTaxAmount: true,
 };
@@ -29,7 +31,7 @@ export const getCompanySettings = async (companyId) => {
 
 export const updateCompanySettings = async (companyId, data) => {
   const {
-    workStartTime, workEndTime,
+    workStartTime, workEndTime, breakTimeHours,
     hraPercent, standardAllowancePercent, performanceBonusPercent,
     ltaPercent, fixedAllowancePercent, professionalTaxAmount,
   } = data;
@@ -60,6 +62,7 @@ export const updateCompanySettings = async (companyId, data) => {
       ...(workStartTime && { workStartTime }),
       ...(workEndTime   && { workEndTime }),
       standardHours,
+      ...(breakTimeHours           != null && { breakTimeHours:           parseFloat(breakTimeHours) }),
       ...(hraPercent               != null && { hraPercent:               parseFloat(hraPercent) }),
       ...(standardAllowancePercent != null && { standardAllowancePercent: parseFloat(standardAllowancePercent) }),
       ...(performanceBonusPercent  != null && { performanceBonusPercent:  parseFloat(performanceBonusPercent) }),
