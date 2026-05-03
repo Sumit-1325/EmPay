@@ -260,11 +260,12 @@ export const getPayrollDashboard = async (companyId) => {
   const currentMonth = new Date().getMonth() + 1;
 
   const [totalEmployees, missingBank, missingManager, recentPayslips, monthlyCostRaw] = await Promise.all([
-    prisma.user.count({ where: { companyId, role: { not: "SUPER_ADMIN" } } }),
+    // Only EMPLOYEE role — admins/HR don't need managers or bank warnings
+    prisma.user.count({ where: { companyId, role: "EMPLOYEE" } }),
 
-    prisma.user.count({ where: { companyId, role: { not: "SUPER_ADMIN" }, bankAccountNumber: null } }),
+    prisma.user.count({ where: { companyId, role: "EMPLOYEE", bankAccountNumber: null } }),
 
-    prisma.user.count({ where: { companyId, role: { not: "SUPER_ADMIN" }, managerId: null } }),
+    prisma.user.count({ where: { companyId, role: "EMPLOYEE", managerId: null } }),
 
     prisma.payslip.findMany({
       where:   { companyId },

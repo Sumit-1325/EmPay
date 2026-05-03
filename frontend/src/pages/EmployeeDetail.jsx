@@ -378,7 +378,11 @@ function SalaryRow({ label, desc, amount, pct }) {
 
 // ── Salary Info Tab ───────────────────────────────────────────────────────────
 function SalaryInfoTab({ employee, canEdit, onSaveField }) {
-  const wage  = employee.monthlyWage ?? 0;
+  // monthlyWage is the source of truth; if null but basicSalary is set in DB,
+  // derive it back (basicSalary = monthlyWage × 0.5  ⟹  monthlyWage = basicSalary × 2)
+  const wage  = employee.monthlyWage != null
+    ? employee.monthlyWage
+    : (employee.basicSalary != null ? employee.basicSalary * 2 : 0);
   const basic = wage * 0.50;
   const hra   = basic * 0.50;
   const sa    = 4167;  // fixed amount per mockup spec

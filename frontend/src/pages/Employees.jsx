@@ -167,6 +167,17 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
     };
   }
 
+  // When role changes away from EMPLOYEE, clear the managerId
+  function handleRoleChange(e) {
+    const newRole = e.target.value;
+    setFields((p) => ({
+      ...p,
+      role:      newRole,
+      managerId: newRole === "EMPLOYEE" ? p.managerId : "",
+    }));
+    if (errors.role) setErrors((p) => ({ ...p, role: "" }));
+  }
+
   function validate() {
     const errs = {};
     if (!fields.firstName.trim()) errs.firstName = "First name is required";
@@ -247,7 +258,7 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
           </Field>
 
           <Field label="Role" error={errors.role}>
-            <select className={SELECT_CLS} value={fields.role} onChange={set("role")}>
+            <select className={SELECT_CLS} value={fields.role} onChange={handleRoleChange}>
               {Object.entries(USER_ROLES)
                 .filter(([k]) => k !== "SUPER_ADMIN")
                 .map(([k, v]) => (
@@ -269,16 +280,19 @@ function CreateEmployeeModal({ onClose, onCreated, employees = [] }) {
             <input className={INPUT_CLS} placeholder="Optional" value={fields.pfNumber} onChange={set("pfNumber")} />
           </Field>
 
-          <Field label="Manager" error={errors.managerId}>
-            <select className={SELECT_CLS} value={fields.managerId} onChange={set("managerId")}>
-              <option value="">None / No Manager</option>
-              {managerOptions.map((emp) => (
-                <option key={emp.id} value={String(emp.id)}>
-                  {[emp.firstName, emp.lastName].filter(Boolean).join(" ") || emp.loginId}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {/* Manager — only for EMPLOYEE role */}
+          {fields.role === "EMPLOYEE" && (
+            <Field label="Manager" error={errors.managerId}>
+              <select className={SELECT_CLS} value={fields.managerId} onChange={set("managerId")}>
+                <option value="">None / No Manager</option>
+                {managerOptions.map((emp) => (
+                  <option key={emp.id} value={String(emp.id)}>
+                    {[emp.firstName, emp.lastName].filter(Boolean).join(" ") || emp.loginId}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 border-t border-border pt-4 mt-2">

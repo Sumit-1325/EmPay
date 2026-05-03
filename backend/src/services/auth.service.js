@@ -18,7 +18,7 @@ const COMPANY_SELECT = { id: true, name: true, code: true };
  * Public self-registration: creates a new Company + first ADMIN user in one transaction.
  * Each call creates a completely separate tenant. No limit on how many companies can register.
  */
-export const registerCompany = async ({ companyName, companyCode, firstName, lastName, email, password }) => {
+export const registerCompany = async ({ companyName, companyCode, firstName, lastName, email, password, monthlyWage }) => {
   const normalizedEmail = normalizeEmail(email);
   const code            = companyCode.trim().toUpperCase();
 
@@ -57,7 +57,11 @@ export const registerCompany = async ({ companyName, companyCode, firstName, las
         passwordHash,
         role:               "ADMIN",
         joiningDate,
-        mustChangePassword: false,   // owner chose their own password at signup
+        mustChangePassword: false,
+        ...(monthlyWage != null && {
+          monthlyWage:  parseFloat(monthlyWage),
+          basicSalary:  parseFloat(monthlyWage) * 0.5,
+        }),
       },
     });
 

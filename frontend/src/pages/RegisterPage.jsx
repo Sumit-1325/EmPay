@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
-import { Building2, Hash, User, Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, Hash, User, Mail, Lock, Wallet, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
 import { AUTH_FEATURES } from "@/constants/authFeatures";
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +19,7 @@ const INITIAL = {
   firstName:   "",
   lastName:    "",
   email:       "",
+  monthlyWage: "",
   password:    "",
 };
 
@@ -74,6 +75,7 @@ export default function RegisterPage() {
         lastName:    fields.lastName.trim(),
         email:       fields.email.trim().toLowerCase(),
         password:    fields.password,
+        ...(fields.monthlyWage && { monthlyWage: parseFloat(fields.monthlyWage) }),
       });
       login(res.data.user, res.data.accessToken, res.data.refreshToken);
       toast({
@@ -187,6 +189,19 @@ export default function RegisterPage() {
             value={fields.email}
             onChange={set("email")}
             error={errors.email}
+            animationClass="animate-fade-up delay-3"
+          />
+
+          <AuthField
+            id="monthlyWage"
+            name="monthlyWage"
+            type="number"
+            label="Monthly Wage (₹) — optional"
+            placeholder="e.g. 80000"
+            icon={Wallet}
+            value={fields.monthlyWage}
+            onChange={set("monthlyWage")}
+            error={errors.monthlyWage}
             animationClass="animate-fade-up delay-3"
           />
 
