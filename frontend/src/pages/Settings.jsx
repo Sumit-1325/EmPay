@@ -77,7 +77,7 @@ function ProfileTab({ user, updateUser }) {
   return (
     <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
       {/* Avatar + name banner */}
-      <div className="flex items-center gap-5 rounded-xl border border-border bg-muted/20 px-5 py-4">
+      <div className="flex items-center gap-5 rounded-xl border-2 border-border bg-muted/20 px-5 py-4">
         <div className="relative shrink-0">
           <Avatar src={avatarUrl ?? undefined} initials={initials} size="xl" />
           {uploading && (
@@ -108,8 +108,8 @@ function ProfileTab({ user, updateUser }) {
       </div>
 
       {/* Form fields */}
-      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
+      <div className="rounded-xl border-2 border-border bg-card px-5 py-5 space-y-4">
+        <h3 className="text-sm font-bold text-foreground">Personal Information</h3>
         <div className="grid grid-cols-2 gap-4">
           {[
             { key: "firstName", label: "First Name", type: "text",  placeholder: "Jane",            colSpan: false },
@@ -158,8 +158,8 @@ function PreferencesTab() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Appearance</h3>
+      <div className="rounded-xl border-2 border-border bg-card px-5 py-5 space-y-3">
+        <h3 className="text-sm font-bold text-foreground">Appearance</h3>
         <div className="flex gap-3">
           {themes.map(({ value, label, icon: Icon }) => (
             <button
@@ -179,14 +179,14 @@ function PreferencesTab() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card px-5 py-5 space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+      <div className="rounded-xl border-2 border-border bg-card px-5 py-5 space-y-3">
+        <h3 className="text-sm font-bold text-foreground">Notifications</h3>
         <div className="space-y-3">
           {[
             { key: "email", label: "Email Notifications", desc: "Receive updates via email" },
             { key: "slack", label: "Slack Notifications", desc: "Receive updates in Slack" },
           ].map(({ key, label, desc }) => (
-            <div key={key} className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <div key={key} className="flex items-center justify-between rounded-xl border-2 border-border bg-muted/20 px-4 py-3.5">
               <div>
                 <p className="text-sm font-medium text-foreground">{label}</p>
                 <p className="text-xs text-muted-foreground">{desc}</p>
@@ -271,18 +271,18 @@ function UserSettingTab({ currentUserId }) {
         Assign roles to control what each employee can access. Changes take effect on their next login.
       </p>
 
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="rounded-xl border-2 border-border overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[1fr_140px_1fr_180px] gap-4 px-4 py-2.5 bg-muted/40 border-b border-border">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">User Name</span>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Login ID</span>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</span>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role</span>
+        <div className="grid grid-cols-[1.4fr_160px_1.4fr_200px] gap-4 px-5 py-3.5 bg-muted/50 border-b-2 border-border">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">User Name</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Login ID</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Role</span>
         </div>
 
         {/* Rows */}
         {employees.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">No employees found.</div>
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">No employees found.</div>
         ) : (
           employees.map((emp) => {
             const isSelf    = emp.id === currentUserId;
@@ -292,21 +292,21 @@ function UserSettingTab({ currentUserId }) {
             return (
               <div
                 key={emp.id}
-                className="grid grid-cols-[1fr_140px_1fr_180px] gap-4 items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
+                className="grid grid-cols-[1.4fr_160px_1.4fr_200px] gap-4 items-center px-5 py-4 border-b-2 border-border last:border-0 hover:bg-muted/20 transition-colors"
               >
                 {/* Name */}
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
                     {fullName.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-sm font-medium text-foreground truncate">{fullName}</span>
+                  <span className="text-sm font-semibold text-foreground truncate">{fullName}</span>
                   {isSelf && (
-                    <span className="text-[10px] text-muted-foreground border border-border rounded px-1 shrink-0">You</span>
+                    <span className="text-[10px] font-medium text-muted-foreground border border-border rounded px-1.5 py-0.5 shrink-0">You</span>
                   )}
                 </div>
 
                 {/* Login ID */}
-                <span className="text-xs font-mono text-muted-foreground truncate">{emp.loginId}</span>
+                <span className="text-sm font-mono text-muted-foreground truncate">{emp.loginId}</span>
 
                 {/* Email */}
                 <span className="text-sm text-muted-foreground truncate">{emp.email}</span>
@@ -318,7 +318,7 @@ function UserSettingTab({ currentUserId }) {
                     disabled={isSelf || isSaving}
                     onChange={(e) => handleRoleChange(emp.id, e.target.value)}
                     className={cn(
-                      "w-full h-8 rounded-md border border-border bg-card px-2.5 pr-7 text-xs font-medium text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-ring transition-colors",
+                      "w-full h-9 rounded-lg border-2 border-border bg-card px-3 pr-8 text-sm font-medium text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-colors",
                       (isSelf || isSaving) && "opacity-50 cursor-not-allowed"
                     )}
                   >
@@ -326,11 +326,11 @@ function UserSettingTab({ currentUserId }) {
                       <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
                     {isSaving ? (
-                      <span className="block h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      <span className="block h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     ) : (
-                      <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 12 12" fill="none">
                         <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
@@ -369,14 +369,16 @@ function CompanyTab() {
   const [seeded,        setSeeded]        = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
 
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime]     = useState("17:00");
+  const [companyName, setCompanyName] = useState("");
+  const [startTime,   setStartTime]   = useState("09:00");
+  const [endTime,     setEndTime]     = useState("17:00");
 
   const { data, loading, refetch } = useFetch(() => api.get("/company/settings"), []);
   const company = data?.company;
 
   // Seed inputs once data arrives
   if (company && !seeded) {
+    setCompanyName(company.name        ?? "");
     setStartTime(company.workStartTime ?? "09:00");
     setEndTime(company.workEndTime     ?? "17:00");
     setSeeded(true);
@@ -399,7 +401,7 @@ function CompanyTab() {
     setLogoUploading(true);
     try {
       const res = await api.patch("/company/logo", fd);
-      updateUser({ companyLogoUrl: res.data.company.logoUrl });
+      updateUser({ companyLogoUrl: res.data.company.logoUrl, companyName: res.data.company.name });
       toast({ title: "Company logo updated", variant: "success" });
       refetch();
     } catch (err) {
@@ -418,7 +420,8 @@ function CompanyTab() {
     }
     setSaving(true);
     try {
-      await api.put("/company/settings", { workStartTime: startTime, workEndTime: endTime });
+      const res = await api.put("/company/settings", { name: companyName.trim() || undefined, workStartTime: startTime, workEndTime: endTime });
+      updateUser({ companyName: res.data.company.name });
       toast({ title: "Settings saved", description: `Work hours set to ${startTime} – ${endTime} (${computedLabel}).`, variant: "success" });
       refetch();
     } catch (err) {
@@ -438,36 +441,48 @@ function CompanyTab() {
 
   return (
     <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-6">
-      {/* Company info + logo */}
-      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4 space-y-4">
-        {/* Logo uploader */}
+      {/* Company identity */}
+      <div className="rounded-xl border-2 border-border bg-card px-4 py-4 space-y-4">
+        <h3 className="text-sm font-bold text-foreground">Company Identity</h3>
         <div className="flex items-center gap-4">
-          <div className="relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border border-border bg-card">
-            {company?.logoUrl ? (
-              <img src={company.logoUrl} alt="Company logo" className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white">
-                {company?.code?.slice(0, 1) ?? "E"}
-              </div>
-            )}
-            {logoUploading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
-                <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">{company?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground font-mono">{company?.code ?? "—"}</p>
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <div className="h-16 w-16 rounded-xl overflow-hidden border border-border bg-muted/30">
+              {company?.logoUrl ? (
+                <img src={company.logoUrl} alt="Company logo" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white">
+                  {company?.code?.slice(0, 1) ?? "E"}
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => logoRef.current?.click()}
               disabled={logoUploading}
-              className="mt-1.5 text-xs text-primary hover:underline disabled:opacity-50"
+              onClick={() => logoRef.current?.click()}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
             >
-              {logoUploading ? "Uploading…" : "Change logo"}
+              {logoUploading
+                ? <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                : <Pencil size={11} />}
+              {logoUploading ? "Uploading…" : "Change"}
             </button>
-            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+          </div>
+          <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+
+          {/* Name + code */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Acme Corp"
+                className="mt-1 h-9 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Code: <span className="font-mono font-semibold text-foreground">{company?.code ?? "—"}</span></p>
           </div>
         </div>
       </div>
@@ -475,7 +490,7 @@ function CompanyTab() {
       {/* Attendance configuration */}
       <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">Attendance Configuration</h3>
-        <div className="rounded-xl border border-border bg-card px-4 py-4 space-y-5">
+        <div className="rounded-xl border-2 border-border bg-card px-4 py-4 space-y-5">
 
           {/* Start + End time */}
           <div className="grid grid-cols-2 gap-4">
@@ -554,7 +569,7 @@ export default function Settings() {
   return (
     <div className="space-y-6 animate-fade-up">
       <PageHeader title="Settings" breadcrumbs={[{ label: "Settings" }]} />
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-xl border-2 border-border bg-card p-6">
         <Tabs tabs={tabs} defaultValue="profile" />
       </div>
     </div>

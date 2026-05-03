@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { apiError } from "../utils/api-error.js";
 import { apiResponse } from "../utils/api-response.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 const COMPANY_SELECT = {
   id: true, name: true, code: true, logoUrl: true,
@@ -32,8 +33,6 @@ export const getCompanySettings = async (companyId) => {
 export const updateCompanyLogo = async (companyId, localFilePath) => {
   if (!localFilePath) throw new apiError(400, "No file uploaded");
 
-  const { uploadToCloudinary, deleteFromCloudinary } = await import("../utils/cloudinary.js");
-
   const existing = await prisma.company.findUnique({ where: { id: companyId }, select: { logoUrl: true } });
   if (!existing) throw new apiError(404, "Company not found");
 
@@ -53,6 +52,7 @@ export const updateCompanyLogo = async (companyId, localFilePath) => {
 
 export const updateCompanySettings = async (companyId, data) => {
   const {
+    name,
     workStartTime, workEndTime, breakTimeHours,
     hraPercent, standardAllowancePercent, performanceBonusPercent,
     ltaPercent, fixedAllowancePercent, professionalTaxAmount,
@@ -81,6 +81,7 @@ export const updateCompanySettings = async (companyId, data) => {
   const company = await prisma.company.update({
     where: { id: companyId },
     data: {
+      ...(name          && { name: name.trim() }),
       ...(workStartTime && { workStartTime }),
       ...(workEndTime   && { workEndTime }),
       standardHours,

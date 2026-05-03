@@ -227,7 +227,10 @@ export const generateSalaryStatementReport = async (companyId, employeeId, year)
       <h1>${companyName}</h1>
       <p>Salary Statement Report &mdash; Financial Year ${year}</p>
     </div>
-    <div style="margin-left:auto;" class="no-print">
+    <div style="margin-left:auto;display:flex;gap:8px;" class="no-print">
+      <button onclick="window.close()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">
+        ← Back
+      </button>
       <button onclick="window.print()" style="background:#fff;color:#4f46e5;border:none;padding:8px 18px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;">
         🖨 Print
       </button>
